@@ -10,6 +10,17 @@
     "platformAutomerge": true,
     "packageRules": [
         {
+            "description": "Disable Python runtime/version bumps from .python-version and requires-python",
+            "matchPackageNames": [
+                "python"
+            ],
+            "matchDatasources": [
+                "docker",
+                "python-version"
+            ],
+            "enabled": false
+        },
+        {
             "matchUpdateTypes": [
                 "minor",
                 "patch",
