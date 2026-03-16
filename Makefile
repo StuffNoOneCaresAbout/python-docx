@@ -21,7 +21,7 @@ help:
 	@echo "  sync         create/update the UV-managed virtual environment"
 	@echo "  test         run unit tests using pytest"
 	@echo "  test-upload  upload distribution to TestPyPI"
-	@echo "  typecheck    run Pyright"
+	@echo "  typecheck    run ty"
 	@echo "  upload       upload distribution tarball to PyPI"
 	@echo "  wheel        generate a binary distribution into dist/"
 
@@ -67,7 +67,7 @@ test-upload: sdist wheel
 	$(UV) run --group publish $(TWINE) upload --repository testpypi dist/*
 
 typecheck:
-	$(UV) run --group typing pyright
+	$(UV) run --group typing ty check
 
 upload: clean sdist wheel
 	$(UV) run --group publish $(TWINE) upload dist/*

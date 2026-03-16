@@ -35,7 +35,7 @@ class CT_CoreProperties(BaseOxmlElement):
     lastModifiedBy = ZeroOrOne("cp:lastModifiedBy", successors=())
     lastPrinted = ZeroOrOne("cp:lastPrinted", successors=())
     modified = ZeroOrOne("dcterms:modified", successors=())
-    revision: etree_Element | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    revision: etree_Element | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "cp:revision", successors=()
     )
     subject = ZeroOrOne("dc:subject", successors=())

@@ -25,7 +25,13 @@ from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.opc.part import PartFactory
 from docx.opc.parts.coreprops import CorePropertiesPart
-from docx.parts.comments import CommentsPart
+from docx.parts.comments import (
+    CommentsExtendedPart,
+    CommentsExtensiblePart,
+    CommentsIdsPart,
+    PeoplePart,
+    CommentsPart,
+)
 from docx.parts.document import DocumentPart
 from docx.parts.hdrftr import FooterPart, HeaderPart
 from docx.parts.image import ImagePart
@@ -43,6 +49,10 @@ def part_class_selector(content_type: str, reltype: str) -> Type[Part] | None:
 PartFactory.part_class_selector = part_class_selector
 PartFactory.part_type_for[CT.OPC_CORE_PROPERTIES] = CorePropertiesPart
 PartFactory.part_type_for[CT.WML_COMMENTS] = CommentsPart
+PartFactory.part_type_for[CT.WML_COMMENTS_EXTENDED] = CommentsExtendedPart
+PartFactory.part_type_for[CT.WML_COMMENTS_EXTENSIBLE] = CommentsExtensiblePart
+PartFactory.part_type_for[CT.WML_COMMENTS_IDS] = CommentsIdsPart
+PartFactory.part_type_for[CT.WML_PEOPLE] = PeoplePart
 PartFactory.part_type_for[CT.WML_DOCUMENT_MAIN] = DocumentPart
 PartFactory.part_type_for[CT.WML_FOOTER] = FooterPart
 PartFactory.part_type_for[CT.WML_HEADER] = HeaderPart
@@ -54,6 +64,10 @@ del (
     CT,
     CorePropertiesPart,
     CommentsPart,
+    CommentsExtendedPart,
+    CommentsExtensiblePart,
+    CommentsIdsPart,
+    PeoplePart,
     DocumentPart,
     FooterPart,
     HeaderPart,

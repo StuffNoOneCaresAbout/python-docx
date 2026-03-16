@@ -6,7 +6,13 @@ from typing import IO, TYPE_CHECKING, cast
 
 from docx.document import Document
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
-from docx.parts.comments import CommentsPart
+from docx.parts.comments import (
+    CommentsExtendedPart,
+    CommentsExtensiblePart,
+    CommentsIdsPart,
+    CommentsPart,
+    PeoplePart,
+)
 from docx.parts.hdrftr import FooterPart, HeaderPart
 from docx.parts.numbering import NumberingPart
 from docx.parts.settings import SettingsPart
@@ -138,6 +144,58 @@ class DocumentPart(StoryPart):
             comments_part = CommentsPart.default(self.package)
             self.relate_to(comments_part, RT.COMMENTS)
             return comments_part
+
+    @property
+    def _comments_extended_part(self) -> CommentsExtendedPart:
+        """Office 2013+ comments extension metadata part.
+
+        Creates a default commentsExtended part if one is not present.
+        """
+        try:
+            return cast(CommentsExtendedPart, self.part_related_by(RT.COMMENTS_EXTENDED))
+        except KeyError:
+            comments_extended_part = CommentsExtendedPart.default(self.package)
+            self.relate_to(comments_extended_part, RT.COMMENTS_EXTENDED)
+            return comments_extended_part
+
+    @property
+    def _comments_extensible_part(self) -> CommentsExtensiblePart:
+        """Office 2018+ extensible threaded-comment metadata part.
+
+        Creates a default commentsExtensible part if one is not present.
+        """
+        try:
+            return cast(CommentsExtensiblePart, self.part_related_by(RT.COMMENTS_EXTENSIBLE))
+        except KeyError:
+            comments_extensible_part = CommentsExtensiblePart.default(self.package)
+            self.relate_to(comments_extensible_part, RT.COMMENTS_EXTENSIBLE)
+            return comments_extensible_part
+
+    @property
+    def _comments_ids_part(self) -> CommentsIdsPart:
+        """Office 2016+ durable comment-id metadata part.
+
+        Creates a default commentsIds part if one is not present.
+        """
+        try:
+            return cast(CommentsIdsPart, self.part_related_by(RT.COMMENTS_IDS))
+        except KeyError:
+            comments_ids_part = CommentsIdsPart.default(self.package)
+            self.relate_to(comments_ids_part, RT.COMMENTS_IDS)
+            return comments_ids_part
+
+    @property
+    def _people_part(self) -> PeoplePart:
+        """Office 2013+ people metadata part.
+
+        Creates a default people part if one is not present.
+        """
+        try:
+            return cast(PeoplePart, self.part_related_by(RT.PEOPLE))
+        except KeyError:
+            people_part = PeoplePart.default(self.package)
+            self.relate_to(people_part, RT.PEOPLE)
+            return people_part
 
     @property
     def _settings_part(self) -> SettingsPart:

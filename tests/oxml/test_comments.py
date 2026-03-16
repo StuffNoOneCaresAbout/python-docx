@@ -8,9 +8,16 @@ from typing import cast
 
 import pytest
 
-from docx.oxml.comments import CT_Comments
+from docx.oxml.comments import (
+    CT_Comments,
+    CT_CommentsEx,
+    CT_CommentsExtensible,
+    CT_CommentsIds,
+    CT_People,
+)
+from docx.oxml.parser import parse_xml
 
-from ..unitutil.cxml import element
+from ..unitutil.cxml import element, xml
 
 
 class DescribeCT_Comments:
@@ -29,3 +36,90 @@ class DescribeCT_Comments:
     def it_finds_the_next_available_comment_id_to_help(self, cxml: str, expected_value: int):
         comments_elm = cast(CT_Comments, element(cxml))
         assert comments_elm._next_available_comment_id() == expected_value
+
+    def it_can_add_a_comment_with_an_explicit_id(self):
+        comments_elm = cast(CT_Comments, element("w:comments"))
+
+        comment = comments_elm.add_comment(42)
+
+        assert comment.id == 42
+        assert len(comments_elm.comment_lst) == 1
+        assert comment.author == ""
+        assert comment.p_lst[0].style == "CommentText"
+        assert comment.p_lst[0].r_lst[0].style == "CommentReference"
+
+    def it_can_add_a_comment_with_a_para_id(self):
+        comments_elm = cast(CT_Comments, element("w:comments"))
+
+        comment = comments_elm.add_comment(42, para_id="0000002A")
+
+        assert comment.p_lst[0].paraId == "0000002A"
+        assert comment.p_lst[0].textId == "77777777"
+
+
+class DescribeCT_CommentsEx:
+    def it_can_add_a_comment_extension(self):
+        comments_ex = cast(
+            CT_CommentsEx,
+            parse_xml(
+                '<w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"/>'
+            ),
+        )
+
+        comment_ex = comments_ex.add_comment_ex("0000002A", parent_para_id="00000001", done=True)
+
+        assert comment_ex.paraId == "0000002A"
+        assert comment_ex.paraIdParent == "00000001"
+        assert comment_ex.done is True
+        assert len(comments_ex.commentEx_lst) == 1
+
+
+class DescribeCT_CommentsIds:
+    def it_can_add_a_durable_comment_id(self):
+        comments_ids = cast(
+            CT_CommentsIds,
+            parse_xml(
+                '<w16cid:commentsIds xmlns:w16cid="http://schemas.microsoft.com/office/word/2016/wordml/cid"/>'
+            ),
+        )
+
+        comment_id = comments_ids.add_comment_id("0000002A", "0000000A")
+
+        assert comment_id.paraId == "0000002A"
+        assert comment_id.durableId == "0000000A"
+        assert comments_ids.get_comment_id_by_para_id("0000002A") is comment_id
+
+
+class DescribeCT_CommentsExtensible:
+    def it_can_add_an_extensible_comment_entry(self):
+        comments_extensible = cast(
+            CT_CommentsExtensible,
+            parse_xml(
+                '<w16cex:commentsExtensible xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex"/>'
+            ),
+        )
+
+        comment_extensible = comments_extensible.add_comment_extensible(durable_id="0000000A")
+
+        assert comment_extensible.durableId == "0000000A"
+        assert comment_extensible.dateUtc is not None
+        assert (
+            comments_extensible.get_comment_extensible_by_durable_id("0000000A")
+            is comment_extensible
+        )
+
+
+class DescribeCT_People:
+    def it_can_add_a_person(self):
+        people = cast(
+            CT_People,
+            parse_xml(
+                '<w15:people xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"/>'
+            ),
+        )
+
+        person = people.add_person("Copilot")
+
+        assert person.author == "Copilot"
+        assert person.presenceInfo is not None
+        assert people.get_person_by_author("Copilot") is person

@@ -40,6 +40,42 @@ class DescribeCT_Row:
             tr.tc_at_grid_offset(col_idx)
 
 
+class DescribeCT_Tbl:
+    def it_can_insert_a_comment_range_start_above(self):
+        body = element("w:body/(w:p,w:tbl/(w:tblPr,w:tblGrid,w:tr/w:tc/w:p),w:p)")
+        tbl = cast(CT_Tbl, body[1])
+
+        tbl.insert_comment_range_start_above(42)
+
+        assert body.xml == xml(
+            "w:body/("
+            "w:p,"
+            "w:tbl/(w:tblPr,w:tblGrid,w:tr/w:tc/w:p/(w:commentRangeStart{w:id=42},w:r)),"
+            "w:p)"
+        )
+
+    def it_can_insert_a_comment_range_end_and_reference_below(self):
+        body = element("w:body/(w:p,w:tbl/(w:tblPr,w:tblGrid,w:tr/w:tc/w:p),w:p)")
+        tbl = cast(CT_Tbl, body[1])
+
+        tbl.insert_comment_range_end_and_reference_below(42)
+
+        assert body.xml == xml(
+            "w:body/("
+            "w:p,"
+            "w:tbl/("
+            "w:tblPr,"
+            "w:tblGrid,"
+            "w:tr/w:tc/w:p/("
+            "w:r,"
+            "w:commentRangeEnd{w:id=42},"
+            "w:r/(w:rPr/w:rStyle{w:val=CommentReference},w:commentReference{w:id=42})"
+            ")"
+            "),"
+            "w:p)"
+        )
+
+
 class DescribeCT_Tc:
     """Unit-test suite for `docx.oxml.table.CT_Tc` objects."""
 

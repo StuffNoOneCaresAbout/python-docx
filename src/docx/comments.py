@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Iterator
 from docx.blkcntnr import BlockItemContainer
 
 if TYPE_CHECKING:
-    from docx.oxml.comments import CT_Comment, CT_Comments
+    from docx.oxml.comments import CT_Comment, CT_CommentEx, CT_Comments
     from docx.parts.comments import CommentsPart
     from docx.styles.style import ParagraphStyle
     from docx.text.paragraph import Paragraph
@@ -24,7 +24,11 @@ class Comments:
     def __iter__(self) -> Iterator[Comment]:
         """Iterator over the comments in this collection."""
         return (
-            Comment(comment_elm, self._comments_part)
+            Comment(
+                comment_elm,
+                self._comments_part,
+                self._comments_part.comment_ex_for(comment_elm),
+            )
             for comment_elm in self._comments_elm.comment_lst
         )
 
@@ -33,6 +37,15 @@ class Comments:
         return len(self._comments_elm.comment_lst)
 
     def add_comment(self, text: str = "", author: str = "", initials: str | None = "") -> Comment:
+        return self._add_comment(text=text, author=author, initials=initials)
+
+    def _add_comment(
+        self,
+        text: str = "",
+        author: str = "",
+        initials: str | None = "",
+        parent_para_id: str | None = None,
+    ) -> Comment:
         """Add a new comment to the document and return it.
 
         The comment is added to the end of the comments collection and is assigned a unique
@@ -54,11 +67,11 @@ class Comments:
         `initials` is an optional attribute, set to the empty string by default. Passing |None|
         for the `initials` parameter causes that attribute to be omitted from the XML.
         """
-        comment_elm = self._comments_elm.add_comment()
+        comment_elm, comment_ex_elm = self._comments_part.add_comment_elm(parent_para_id)
         comment_elm.author = author
         comment_elm.initials = initials
         comment_elm.date = dt.datetime.now(dt.timezone.utc)
-        comment = Comment(comment_elm, self._comments_part)
+        comment = Comment(comment_elm, self._comments_part, comment_ex_elm)
 
         if text == "":
             return comment
@@ -77,7 +90,15 @@ class Comments:
     def get(self, comment_id: int) -> Comment | None:
         """Return the comment identified by `comment_id`, or |None| if not found."""
         comment_elm = self._comments_elm.get_comment_by_id(comment_id)
-        return Comment(comment_elm, self._comments_part) if comment_elm is not None else None
+        return (
+            Comment(
+                comment_elm,
+                self._comments_part,
+                self._comments_part.comment_ex_for(comment_elm),
+            )
+            if comment_elm is not None
+            else None
+        )
 
 
 class Comment(BlockItemContainer):
@@ -94,9 +115,34 @@ class Comment(BlockItemContainer):
     space limitations. Such "over-sized" content can still be viewed in the review pane.
     """
 
-    def __init__(self, comment_elm: CT_Comment, comments_part: CommentsPart):
+    def __init__(
+        self,
+        comment_elm: CT_Comment,
+        comments_part: CommentsPart,
+        comment_ex_elm: CT_CommentEx | None = None,
+    ):
         super().__init__(comment_elm, comments_part)
         self._comment_elm = comment_elm
+        self._comments_part = comments_part
+        self._comment_ex_elm = comment_ex_elm
+
+    def add_reply(self, text: str = "", author: str = "", initials: str | None = "") -> Comment:
+        """Add a reply to this comment and return it."""
+        parent_ex = self._comments_part.ensure_comment_ex(self._comment_elm)
+        self._comments_part.ensure_comment_id(self._comment_elm)
+        self._comments_part.ensure_person(self.author)
+        comments = self._comments_part.comments
+        comment = comments._add_comment(
+            text=text,
+            author=author,
+            initials=initials,
+            parent_para_id=parent_ex.paraId,
+        )
+        self._comments_part.anchor_comment_like(comment.comment_id, self.comment_id)
+        self._comments_part.ensure_comment_id(comment._comment_elm)
+        self._comments_part.ensure_comment_extensible(comment._comment_elm, comment.timestamp)
+        self._comments_part.ensure_person(comment.author)
+        return comment
 
     def add_paragraph(self, text: str = "", style: str | ParagraphStyle | None = None) -> Paragraph:
         """Return paragraph newly added to the end of the content in this container.
@@ -130,6 +176,56 @@ class Comment(BlockItemContainer):
     def comment_id(self) -> int:
         """The unique identifier of this comment."""
         return self._comment_elm.id
+
+    @property
+    def parent_comment(self) -> Comment | None:
+        """Parent comment when this comment is a reply, |None| otherwise."""
+        parent_para_id = self.parent_para_id
+        if parent_para_id is None:
+            return None
+        return next(
+            (
+                comment
+                for comment in self._comments_part.comments
+                if comment.para_id == parent_para_id
+            ),
+            None,
+        )
+
+    @property
+    def parent_para_id(self) -> str | None:
+        """ParaId of the parent comment when this comment is a reply."""
+        return self._comment_ex_elm.paraIdParent if self._comment_ex_elm is not None else None
+
+    @property
+    def para_id(self) -> str | None:
+        """Threading identifier for this comment in `commentsExtended.xml`."""
+        return self._comment_ex_elm.paraId if self._comment_ex_elm is not None else None
+
+    @property
+    def replies(self) -> list[Comment]:
+        """Replies to this comment."""
+        para_id = self.para_id
+        if para_id is None:
+            return []
+        return [
+            comment for comment in self._comments_part.comments if comment.parent_para_id == para_id
+        ]
+
+    @property
+    def resolved(self) -> bool:
+        """True when this comment is marked resolved/done."""
+        return bool(self._comment_ex_elm.done) if self._comment_ex_elm is not None else False
+
+    @resolved.setter
+    def resolved(self, value: bool):
+        comment_ex = (
+            self._comment_ex_elm
+            if self._comment_ex_elm is not None
+            else self._comments_part.ensure_comment_ex(self._comment_elm)
+        )
+        comment_ex.done = value
+        self._comment_ex_elm = comment_ex
 
     @property
     def initials(self) -> str | None:

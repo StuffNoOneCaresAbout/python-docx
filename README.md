@@ -15,6 +15,7 @@ Supported Python versions are 3.13+.
 
 ```
 uv sync
+uv run --group typing ty check src
 uv run pytest -x
 uv run --group test behave --stop
 uv run --group docs sphinx-build -b html docs docs/.build/html

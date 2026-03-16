@@ -40,7 +40,7 @@ class Document(ElementProxy):
 
     def add_comment(
         self,
-        runs: Run | Sequence[Run],
+        runs: Run | Sequence[Run] | Table,
         text: str | None = "",
         author: str = "",
         initials: str | None = "",
@@ -74,10 +74,22 @@ class Document(ElementProxy):
         `initials` attribute by default and we follow that convention by using the empty string
         when no `initials` argument is provided.
         """
+        from docx.table import Table
+
+        if isinstance(runs, Table):
+            return runs.add_comment(text=text, author=author, initials=initials)
+
         # -- normalize `runs` to a sequence of runs --
         runs = [runs] if isinstance(runs, Run) else runs
         first_run = runs[0]
         last_run = runs[-1]
+
+        if first_run.part is not self._part:
+            raise ValueError("comments can only be added to runs in the main document story")
+        if first_run.part is not last_run.part:
+            raise ValueError(
+                "first and last run for a comment must belong to the same document part"
+            )
 
         # -- Note that comments can only appear in the document part --
         comment = self.comments.add_comment(text=text, author=author, initials=initials)

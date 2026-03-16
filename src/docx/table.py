@@ -15,6 +15,7 @@ from docx.shared import Inches, Parented, StoryChild, lazyproperty
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.comments import Comment
     from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_TABLE_ALIGNMENT, WD_TABLE_DIRECTION
     from docx.oxml.table import CT_Row, CT_Tbl, CT_TblPr, CT_Tc
     from docx.shared import Length
@@ -53,6 +54,18 @@ class Table(StoryChild):
             if gridCol.w is not None:
                 tc.width = gridCol.w
         return _Row(tr, self)
+
+    def add_comment(
+        self, text: str | None = "", author: str = "", initials: str | None = ""
+    ) -> Comment:
+        """Add a comment spanning this entire table."""
+        if self.part is not self.part._document_part:  # pyright: ignore[reportPrivateUsage]
+            raise ValueError("comments can only be added to tables in the main document story")
+
+        comment = self.part.comments.add_comment(text=text or "", author=author, initials=initials)
+        self._tbl.insert_comment_range_start_above(comment.comment_id)
+        self._tbl.insert_comment_range_end_and_reference_below(comment.comment_id)
+        return comment
 
     @property
     def alignment(self) -> WD_TABLE_ALIGNMENT | None:

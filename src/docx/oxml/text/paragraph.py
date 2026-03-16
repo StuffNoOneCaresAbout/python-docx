@@ -1,3 +1,4 @@
+# pyright: reportAssignmentType=false
 # pyright: reportPrivateUsage=false
 
 """Custom element classes related to paragraphs (CT_P)."""
@@ -7,7 +8,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable, List, cast
 
 from docx.oxml.parser import OxmlElement
-from docx.oxml.xmlchemy import BaseOxmlElement, ZeroOrMore, ZeroOrOne
+from docx.oxml.simpletypes import ST_LongHexNumber
+from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute, ZeroOrMore, ZeroOrOne
 
 if TYPE_CHECKING:
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
@@ -25,6 +27,9 @@ class CT_P(BaseOxmlElement):
     get_or_add_pPr: Callable[[], CT_PPr]
     hyperlink_lst: List[CT_Hyperlink]
     r_lst: List[CT_R]
+
+    paraId: str | None = OptionalAttribute("w14:paraId", ST_LongHexNumber)
+    textId: str | None = OptionalAttribute("w14:textId", ST_LongHexNumber)
 
     pPr: CT_PPr | None = ZeroOrOne("w:pPr")  # pyright: ignore[reportAssignmentType]
     hyperlink = ZeroOrMore("w:hyperlink")

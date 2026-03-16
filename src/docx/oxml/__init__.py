@@ -86,10 +86,31 @@ register_element_cls("w:titlePg", CT_OnOff)
 # ---------------------------------------------------------------------------
 # other custom element class mappings
 
-from .comments import CT_Comments, CT_Comment
+from .comments import (
+    CT_Comment,
+    CT_CommentEx,
+    CT_CommentExtensible,
+    CT_CommentId,
+    CT_Comments,
+    CT_CommentsEx,
+    CT_CommentsExtensible,
+    CT_CommentsIds,
+    CT_People,
+    CT_Person,
+    CT_PresenceInfo,
+)
 
 register_element_cls("w:comments", CT_Comments)
 register_element_cls("w:comment", CT_Comment)
+register_element_cls("w15:commentsEx", CT_CommentsEx)
+register_element_cls("w15:commentEx", CT_CommentEx)
+register_element_cls("w16cid:commentsIds", CT_CommentsIds)
+register_element_cls("w16cid:commentId", CT_CommentId)
+register_element_cls("w16cex:commentsExtensible", CT_CommentsExtensible)
+register_element_cls("w16cex:commentExtensible", CT_CommentExtensible)
+register_element_cls("w15:people", CT_People)
+register_element_cls("w15:person", CT_Person)
+register_element_cls("w15:presenceInfo", CT_PresenceInfo)
 
 from .coreprops import CT_CoreProperties
 

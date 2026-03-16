@@ -29,16 +29,16 @@ if TYPE_CHECKING:
 class CT_Ind(BaseOxmlElement):
     """``<w:ind>`` element, specifying paragraph indentation."""
 
-    left: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    left: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:left", ST_SignedTwipsMeasure
     )
-    right: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    right: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:right", ST_SignedTwipsMeasure
     )
-    firstLine: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    firstLine: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:firstLine", ST_TwipsMeasure
     )
-    hanging: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    hanging: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:hanging", ST_TwipsMeasure
     )
 
@@ -46,7 +46,7 @@ class CT_Ind(BaseOxmlElement):
 class CT_Jc(BaseOxmlElement):
     """``<w:jc>`` element, specifying paragraph justification."""
 
-    val: WD_ALIGN_PARAGRAPH = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+    val: WD_ALIGN_PARAGRAPH = RequiredAttribute(  # ty: ignore[invalid-assignment]
         "w:val", WD_ALIGN_PARAGRAPH
     )
 
@@ -99,7 +99,7 @@ class CT_PPr(BaseOxmlElement):
         "w:sectPr",
         "w:pPrChange",
     )
-    pStyle: CT_String | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    pStyle: CT_String | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:pStyle", successors=_tag_seq[1:]
     )
     keepNext = ZeroOrOne("w:keepNext", successors=_tag_seq[2:])
@@ -109,11 +109,11 @@ class CT_PPr(BaseOxmlElement):
     numPr = ZeroOrOne("w:numPr", successors=_tag_seq[7:])
     tabs = ZeroOrOne("w:tabs", successors=_tag_seq[11:])
     spacing = ZeroOrOne("w:spacing", successors=_tag_seq[22:])
-    ind: CT_Ind | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    ind: CT_Ind | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:ind", successors=_tag_seq[23:]
     )
     jc = ZeroOrOne("w:jc", successors=_tag_seq[27:])
-    outlineLvl: CT_DecimalNumber = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    outlineLvl: CT_DecimalNumber = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:outlineLvl", successors=_tag_seq[31:]
     )
     sectPr = ZeroOrOne("w:sectPr", successors=_tag_seq[35:])
@@ -356,13 +356,13 @@ class CT_TabStop(BaseOxmlElement):
     only needs a __str__ method.
     """
 
-    val: WD_TAB_ALIGNMENT = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+    val: WD_TAB_ALIGNMENT = RequiredAttribute(  # ty: ignore[invalid-assignment]
         "w:val", WD_TAB_ALIGNMENT
     )
-    leader: WD_TAB_LEADER | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    leader: WD_TAB_LEADER | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:leader", WD_TAB_LEADER, default=WD_TAB_LEADER.SPACES
     )
-    pos: Length = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+    pos: Length = RequiredAttribute(  # ty: ignore[invalid-assignment]
         "w:pos", ST_SignedTwipsMeasure
     )
 

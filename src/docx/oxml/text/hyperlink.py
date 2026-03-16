@@ -21,11 +21,11 @@ class CT_Hyperlink(BaseOxmlElement):
 
     r_lst: List[CT_R]
 
-    rId: str | None = OptionalAttribute("r:id", XsdString)  # pyright: ignore[reportAssignmentType]
-    anchor: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    rId: str | None = OptionalAttribute("r:id", XsdString)  # ty: ignore[invalid-assignment]
+    anchor: str | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:anchor", ST_String
     )
-    history: bool = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    history: bool = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:history", ST_OnOff, default=True
     )
 

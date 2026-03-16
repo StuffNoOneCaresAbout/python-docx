@@ -51,34 +51,34 @@ class CT_HdrFtr(BaseOxmlElement):
 class CT_HdrFtrRef(BaseOxmlElement):
     """`w:headerReference` and `w:footerReference` elements."""
 
-    type_: WD_HEADER_FOOTER = RequiredAttribute(  # pyright: ignore[reportAssignmentType]
+    type_: WD_HEADER_FOOTER = RequiredAttribute(  # ty: ignore[invalid-assignment]
         "w:type", WD_HEADER_FOOTER
     )
-    rId: str = RequiredAttribute("r:id", XsdString)  # pyright: ignore[reportAssignmentType]
+    rId: str = RequiredAttribute("r:id", XsdString)  # ty: ignore[invalid-assignment]
 
 
 class CT_PageMar(BaseOxmlElement):
     """``<w:pgMar>`` element, defining page margins."""
 
-    top: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    top: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:top", ST_SignedTwipsMeasure
     )
-    right: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    right: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:right", ST_TwipsMeasure
     )
-    bottom: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    bottom: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:bottom", ST_SignedTwipsMeasure
     )
-    left: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    left: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:left", ST_TwipsMeasure
     )
-    header: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    header: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:header", ST_TwipsMeasure
     )
-    footer: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    footer: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:footer", ST_TwipsMeasure
     )
-    gutter: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    gutter: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:gutter", ST_TwipsMeasure
     )
 
@@ -86,13 +86,13 @@ class CT_PageMar(BaseOxmlElement):
 class CT_PageSz(BaseOxmlElement):
     """``<w:pgSz>`` element, defining page dimensions and orientation."""
 
-    w: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    w: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:w", ST_TwipsMeasure
     )
-    h: Length | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    h: Length | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:h", ST_TwipsMeasure
     )
-    orient: WD_ORIENTATION = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    orient: WD_ORIENTATION = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:orient", WD_ORIENTATION, default=WD_ORIENTATION.PORTRAIT
     )
 
@@ -133,16 +133,16 @@ class CT_SectPr(BaseOxmlElement):
     )
     headerReference = ZeroOrMore("w:headerReference", successors=_tag_seq)
     footerReference = ZeroOrMore("w:footerReference", successors=_tag_seq)
-    type: CT_SectType | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    type: CT_SectType | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:type", successors=_tag_seq[3:]
     )
-    pgSz: CT_PageSz | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    pgSz: CT_PageSz | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:pgSz", successors=_tag_seq[4:]
     )
-    pgMar: CT_PageMar | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    pgMar: CT_PageMar | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:pgMar", successors=_tag_seq[5:]
     )
-    titlePg: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    titlePg: CT_OnOff | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:titlePg", successors=_tag_seq[14:]
     )
     del _tag_seq
@@ -426,7 +426,7 @@ class CT_SectPr(BaseOxmlElement):
 class CT_SectType(BaseOxmlElement):
     """``<w:sectType>`` element, defining the section start type."""
 
-    val: WD_SECTION_START | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    val: WD_SECTION_START | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:val", WD_SECTION_START
     )
 

@@ -1,14 +1,29 @@
+# pyright: reportAssignmentType=false
+
 """Custom element classes related to document comments."""
 
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 from typing import TYPE_CHECKING, Callable, cast
 
 from docx.oxml.ns import nsdecls
 from docx.oxml.parser import parse_xml
-from docx.oxml.simpletypes import ST_DateTime, ST_DecimalNumber, ST_String
-from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute, RequiredAttribute, ZeroOrMore
+from docx.oxml.simpletypes import (
+    ST_DateTime,
+    ST_DecimalNumber,
+    ST_LongHexNumber,
+    ST_OnOff,
+    ST_String,
+)
+from docx.oxml.xmlchemy import (
+    BaseOxmlElement,
+    OptionalAttribute,
+    RequiredAttribute,
+    ZeroOrMore,
+    ZeroOrOne,
+)
 
 if TYPE_CHECKING:
     from docx.oxml.table import CT_Tbl
@@ -29,7 +44,7 @@ class CT_Comments(BaseOxmlElement):
 
     comment = ZeroOrMore("w:comment")
 
-    def add_comment(self) -> CT_Comment:
+    def add_comment(self, comment_id: int | None = None, para_id: str | None = None) -> CT_Comment:
         """Return newly added `w:comment` child of this `w:comments`.
 
         The returned `w:comment` element is the minimum valid value, having a `w:id` value unique
@@ -38,12 +53,16 @@ class CT_Comments(BaseOxmlElement):
         reference but no text. Content is added by adding runs to this first paragraph and by
         adding additional paragraphs as needed.
         """
-        next_id = self._next_available_comment_id()
+        next_id = self._next_available_comment_id() if comment_id is None else comment_id
+        para_id_attr = f' w14:paraId="{para_id}" w14:textId="77777777"' if para_id else ""
+        w14_ns = (
+            ' xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"' if para_id else ""
+        )
         comment = cast(
             CT_Comment,
             parse_xml(
-                f'<w:comment {nsdecls("w")} w:id="{next_id}" w:author="">'
-                f"  <w:p>"
+                f'<w:comment {nsdecls("w")}{w14_ns} w:id="{next_id}" w:author="">'
+                f"  <w:p{para_id_attr}>"
                 f"    <w:pPr>"
                 f'      <w:pStyle w:val="CommentText"/>'
                 f"    </w:pPr>"
@@ -122,3 +141,144 @@ class CT_Comment(BaseOxmlElement):
     def inner_content_elements(self) -> list[CT_P | CT_Tbl]:
         """Generate all `w:p` and `w:tbl` elements in this comment."""
         return self.xpath("./w:p | ./w:tbl")
+
+
+class CT_CommentsEx(BaseOxmlElement):
+    """`w15:commentsEx` element, root element for comment extension metadata."""
+
+    commentEx_lst: list[CT_CommentEx]
+
+    commentEx = ZeroOrMore("w15:commentEx")
+
+    def add_comment_ex(
+        self, para_id: str, parent_para_id: str | None = None, done: bool = False
+    ) -> CT_CommentEx:
+        comment_ex = cast(
+            CT_CommentEx,
+            parse_xml(
+                f'<w15:commentEx {nsdecls("w15")} w15:paraId="{para_id}"'
+                f"{f' w15:paraIdParent="{parent_para_id}"' if parent_para_id else ''}"
+                f' w15:done="{1 if done else 0}"/>'
+            ),
+        )
+        self.append(comment_ex)
+        return comment_ex
+
+
+class CT_CommentEx(BaseOxmlElement):
+    """`w15:commentEx` element, extra metadata for a single comment."""
+
+    paraId: str = RequiredAttribute("w15:paraId", ST_LongHexNumber)  # pyright: ignore[reportAssignmentType]
+    paraIdParent: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w15:paraIdParent", ST_LongHexNumber
+    )
+    done: bool = OptionalAttribute("w15:done", ST_OnOff, default=False)  # ty: ignore[invalid-assignment]
+
+
+class CT_CommentsIds(BaseOxmlElement):
+    """`w16cid:commentsIds` element, mapping paraId to durableId."""
+
+    commentId_lst: list[CT_CommentId]
+
+    commentId = ZeroOrMore("w16cid:commentId")
+
+    def add_comment_id(self, para_id: str, durable_id: str) -> CT_CommentId:
+        comment_id = cast(
+            CT_CommentId,
+            parse_xml(
+                f"<w16cid:commentId {nsdecls('w16cid')} "
+                f'w16cid:paraId="{para_id}" w16cid:durableId="{durable_id}"/>'
+            ),
+        )
+        self.append(comment_id)
+        return comment_id
+
+    def get_comment_id_by_para_id(self, para_id: str) -> CT_CommentId | None:
+        comment_ids = self.xpath(f"(./w16cid:commentId[@w16cid:paraId='{para_id}'])[1]")
+        return comment_ids[0] if comment_ids else None
+
+
+class CT_CommentId(BaseOxmlElement):
+    """`w16cid:commentId` element."""
+
+    paraId: str = RequiredAttribute("w16cid:paraId", ST_LongHexNumber)  # pyright: ignore[reportAssignmentType]
+    durableId: str = RequiredAttribute("w16cid:durableId", ST_LongHexNumber)  # pyright: ignore[reportAssignmentType]
+
+
+class CT_CommentsExtensible(BaseOxmlElement):
+    """`w16cex:commentsExtensible` element, extra metadata for threaded replies."""
+
+    commentExtensible_lst: list[CT_CommentExtensible]
+
+    commentExtensible = ZeroOrMore("w16cex:commentExtensible")
+
+    def add_comment_extensible(
+        self, durable_id: str, date_utc: dt.datetime | None = None
+    ) -> CT_CommentExtensible:
+        if date_utc is None:
+            date_utc = dt.datetime.now(dt.timezone.utc)
+        date_utc = date_utc.astimezone(dt.timezone.utc)
+        date_utc_str = date_utc.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        comment_extensible = cast(
+            CT_CommentExtensible,
+            parse_xml(
+                f"<w16cex:commentExtensible {nsdecls('w16cex')} "
+                f'w16cex:durableId="{durable_id}" w16cex:dateUtc="{date_utc_str}"/>'
+            ),
+        )
+        self.append(comment_extensible)
+        return comment_extensible
+
+    def get_comment_extensible_by_durable_id(self, durable_id: str) -> CT_CommentExtensible | None:
+        comment_extensibles = self.xpath(
+            f"(./w16cex:commentExtensible[@w16cex:durableId='{durable_id}'])[1]"
+        )
+        return comment_extensibles[0] if comment_extensibles else None
+
+
+class CT_CommentExtensible(BaseOxmlElement):
+    """`w16cex:commentExtensible` element."""
+
+    durableId: str = RequiredAttribute("w16cex:durableId", ST_LongHexNumber)  # pyright: ignore[reportAssignmentType]
+    dateUtc: dt.datetime | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+        "w16cex:dateUtc", ST_DateTime
+    )
+
+
+class CT_People(BaseOxmlElement):
+    """`w15:people` element, root element for threaded comment authors."""
+
+    person_lst: list[CT_Person]
+
+    person = ZeroOrMore("w15:person")
+
+    def add_person(self, author: str) -> CT_Person:
+        person = cast(
+            CT_Person,
+            parse_xml(
+                f'<w15:person {nsdecls("w15")} w15:author="{author}">'
+                f'<w15:presenceInfo w15:providerId="Windows Live" '
+                f'w15:userId="{hashlib.sha1(author.encode("utf-8")).hexdigest()[:16]}"/>'
+                f"</w15:person>"
+            ),
+        )
+        self.append(person)
+        return person
+
+    def get_person_by_author(self, author: str) -> CT_Person | None:
+        people = self.xpath(f"(./w15:person[@w15:author='{author}'])[1]")
+        return people[0] if people else None
+
+
+class CT_Person(BaseOxmlElement):
+    """`w15:person` element."""
+
+    author: str = RequiredAttribute("w15:author", ST_String)  # pyright: ignore[reportAssignmentType]
+    presenceInfo = ZeroOrOne("w15:presenceInfo")
+
+
+class CT_PresenceInfo(BaseOxmlElement):
+    """`w15:presenceInfo` element."""
+
+    providerId: str = RequiredAttribute("w15:providerId", ST_String)  # pyright: ignore[reportAssignmentType]
+    userId: str = RequiredAttribute("w15:userId", ST_String)  # pyright: ignore[reportAssignmentType]

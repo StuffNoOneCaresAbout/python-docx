@@ -15,6 +15,7 @@ from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
 from docx.opc.coreprops import CoreProperties
 from docx.oxml.document import CT_Body, CT_Document
+from docx.oxml.table import CT_Tbl
 from docx.parts.document import DocumentPart
 from docx.section import Section, Sections
 from docx.settings import Settings
@@ -57,6 +58,20 @@ class DescribeDocument:
 
         comments_.add_comment.assert_called_once_with("Comment text.", "", "")
         run_mark_comment_range_.assert_called_once_with(run, run, 42)
+        assert comment is comment_
+
+    def it_can_add_a_comment_on_a_table(
+        self, document_part_: Mock, table_add_comment_: Mock, comment_: Mock
+    ):
+        table_add_comment_.return_value = comment_
+        document = Document(cast(CT_Document, element("w:document/w:body")), document_part_)
+        table = Table(cast(CT_Tbl, element("w:tbl")), document)
+
+        comment = document.add_comment(table, "Table comment.", "A", "BC")
+
+        table_add_comment_.assert_called_once_with(
+            table, text="Table comment.", author="A", initials="BC"
+        )
         assert comment is comment_
 
     @pytest.mark.parametrize(
@@ -356,6 +371,10 @@ class DescribeDocument:
     @pytest.fixture
     def run_mark_comment_range_(self, request: FixtureRequest):
         return method_mock(request, Run, "mark_comment_range")
+
+    @pytest.fixture
+    def table_add_comment_(self, request: FixtureRequest):
+        return method_mock(request, Table, "add_comment")
 
     @pytest.fixture
     def Section_(self, request: FixtureRequest):

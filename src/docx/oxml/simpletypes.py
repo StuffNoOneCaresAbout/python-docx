@@ -10,6 +10,7 @@ schema.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from typing import TYPE_CHECKING, Any, Tuple
 
 from docx.exceptions import InvalidXmlError
@@ -322,6 +323,22 @@ class ST_HpsMeasure(XsdUnsignedLong):
         emu = Emu(value)
         half_points = int(emu.pt * 2)
         return str(half_points)
+
+
+class ST_LongHexNumber(BaseStringType):
+    """Eight-character uppercase hexadecimal string."""
+
+    _long_hex_pattern = re.compile(r"^[0-9A-F]{8}$")
+
+    @classmethod
+    def convert_to_xml(cls, value: str) -> str:
+        return value.upper()
+
+    @classmethod
+    def validate(cls, value: Any) -> None:
+        value = cls.validate_string(value).upper()
+        if cls._long_hex_pattern.match(value) is None:
+            raise ValueError("value must be an 8-character uppercase hex string, got '%s'" % value)
 
 
 class ST_Merge(XsdStringEnumeration):

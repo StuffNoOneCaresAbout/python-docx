@@ -188,6 +188,34 @@ class CT_Tbl(BaseOxmlElement):
             for tc in tr.tc_lst:
                 yield tc
 
+    def insert_comment_range_end_and_reference_below(self, comment_id: int) -> None:
+        """Insert `w:commentRangeEnd` and `w:commentReference` in the table's end paragraph.
+
+        Word does not allow a bare `w:r` or `w:commentRangeEnd` as a direct child of
+        `w:body`. Table-spanning comments are anchored by placing the start marker in
+        the first paragraph of the first cell and the end/reference in the last
+        paragraph of the last cell.
+        """
+        self._last_comment_anchor_run.insert_comment_range_end_and_reference_below(comment_id)
+
+    def insert_comment_range_start_above(self, comment_id: int) -> None:
+        """Insert `w:commentRangeStart` in the table's start paragraph."""
+        self._first_comment_anchor_run.insert_comment_range_start_above(comment_id)
+
+    @property
+    def _first_comment_anchor_run(self):
+        """Run in the first cell paragraph used to anchor a table comment start marker."""
+        first_tc = next(self.iter_tcs())
+        first_p = first_tc.p_lst[0]
+        return first_p.r_lst[0] if first_p.r_lst else first_p.add_r()
+
+    @property
+    def _last_comment_anchor_run(self):
+        """Run in the last cell paragraph used to anchor a table comment end/reference."""
+        last_tc = list(self.iter_tcs())[-1]
+        last_p = last_tc.p_lst[-1]
+        return last_p.r_lst[-1] if last_p.r_lst else last_p.add_r()
+
     @classmethod
     def new_tbl(cls, rows: int, cols: int, width: Length) -> CT_Tbl:
         """Return a new `w:tbl` element having `rows` rows and `cols` columns.

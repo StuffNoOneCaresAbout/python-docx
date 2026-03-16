@@ -30,7 +30,7 @@ class CT_R(BaseOxmlElement):
     _add_drawing: Callable[[], CT_Drawing]
     _add_t: Callable[..., CT_Text]
 
-    rPr: CT_RPr | None = ZeroOrOne("w:rPr")  # pyright: ignore[reportAssignmentType]
+    rPr: CT_RPr | None = ZeroOrOne("w:rPr")  # ty: ignore[invalid-assignment]
     br = ZeroOrMore("w:br")
     cr = ZeroOrMore("w:cr")
     drawing = ZeroOrMore("w:drawing")
@@ -171,7 +171,7 @@ class CT_R(BaseOxmlElement):
 class CT_Br(BaseOxmlElement):
     """`<w:br>` element, indicating a line, page, or column break in a run."""
 
-    type: str | None = OptionalAttribute(  # pyright: ignore[reportAssignmentType]
+    type: str | None = OptionalAttribute(  # ty: ignore[invalid-assignment]
         "w:type", ST_BrType, default="textWrapping"
     )
     clear: str | None = OptionalAttribute("w:clear", ST_BrClear)  # pyright: ignore
