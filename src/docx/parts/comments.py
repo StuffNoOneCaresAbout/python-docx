@@ -12,7 +12,6 @@ from docx.comments import Comments
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.opc.packuri import PackURI
 from docx.opc.part import XmlPart
-from docx.oxml.ns import qn
 from docx.oxml.comments import (
     CT_Comment,
     CT_CommentEx,
@@ -25,6 +24,7 @@ from docx.oxml.comments import (
     CT_People,
     CT_Person,
 )
+from docx.oxml.ns import qn
 from docx.oxml.parser import OxmlElement, parse_xml
 from docx.package import Package
 from docx.parts.story import StoryPart

@@ -29,8 +29,8 @@ from docx.parts.comments import (
     CommentsExtendedPart,
     CommentsExtensiblePart,
     CommentsIdsPart,
-    PeoplePart,
     CommentsPart,
+    PeoplePart,
 )
 from docx.parts.document import DocumentPart
 from docx.parts.hdrftr import FooterPart, HeaderPart

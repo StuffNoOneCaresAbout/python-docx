@@ -227,7 +227,9 @@ class DescribeComments:
         ]
         assert [
             comment_extensible.durableId
-            for comment_extensible in package_.main_document_part._comments_extensible_part.element.commentExtensible_lst
+            for comment_extensible in (
+                package_.main_document_part._comments_extensible_part.element.commentExtensible_lst
+            )
         ] == [package_.main_document_part._comments_ids_part.element.commentId_lst[1].durableId]
         assert [
             person.author for person in package_.main_document_part._people_part.element.person_lst

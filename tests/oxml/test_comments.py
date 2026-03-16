@@ -17,7 +17,7 @@ from docx.oxml.comments import (
 )
 from docx.oxml.parser import parse_xml
 
-from ..unitutil.cxml import element, xml
+from ..unitutil.cxml import element
 
 
 class DescribeCT_Comments:
