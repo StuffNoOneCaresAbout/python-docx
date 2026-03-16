@@ -24,7 +24,7 @@ dynamic = ["version"]
 keywords = ["docx", "office", "openxml", "word"]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14.3"
 
 [dependency-groups]
 docs = ["sphinx>=9.1"]
