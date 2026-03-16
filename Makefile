@@ -1,10 +1,10 @@
 BEHAVE = behave
 MAKE   = make
-PYTHON = python
-TWINE  = $(PYTHON) -m twine
+TWINE  = twine
+UV     = uv
 
-.PHONY: accept build clean cleandocs coverage docs install opendocs sdist test
-.PHONY: test-upload wheel
+.PHONY: accept build clean cleandocs coverage docs install lint opendocs sdist sync
+.PHONY: test test-upload typecheck wheel
 
 help:
 	@echo "Please use \`make <target>' where <target> is one or more of"
@@ -14,19 +14,22 @@ help:
 	@echo "  cleandocs    delete intermediate documentation files"
 	@echo "  coverage     run pytest with coverage"
 	@echo "  docs         generate documentation"
+	@echo "  lint         run Ruff"
 	@echo "  opendocs     open browser to local version of documentation"
 	@echo "  register     update metadata (README.rst) on PyPI"
 	@echo "  sdist        generate a source distribution into dist/"
+	@echo "  sync         create/update the UV-managed virtual environment"
 	@echo "  test         run unit tests using pytest"
 	@echo "  test-upload  upload distribution to TestPyPI"
+	@echo "  typecheck    run Pyright"
 	@echo "  upload       upload distribution tarball to PyPI"
 	@echo "  wheel        generate a binary distribution into dist/"
 
 accept:
-	uv run $(BEHAVE) --stop
+	$(UV) run --group test $(BEHAVE) --stop
 
 build:
-	uv build
+	$(UV) build
 
 clean:
 	# find . -type f -name \*.pyc -exec rm {} \;
@@ -37,28 +40,37 @@ cleandocs:
 	$(MAKE) -C docs clean
 
 coverage:
-	uv run pytest --cov-report term-missing --cov=docx tests/
+	$(UV) run --group test pytest --cov-report term-missing --cov=docx tests/
 
 docs:
 	$(MAKE) -C docs html
 
 install:
-	pip install -Ue .
+	$(MAKE) sync
+
+lint:
+	$(UV) run --group lint ruff check .
 
 opendocs:
 	open docs/.build/html/index.html
 
 sdist:
-	uv build --sdist
+	$(UV) build --sdist
+
+sync:
+	$(UV) sync
 
 test:
-	uv run pytest -x
+	$(UV) run --group test pytest -x
 
 test-upload: sdist wheel
-	uv run $(TWINE) upload --repository testpypi dist/*
+	$(UV) run --group publish $(TWINE) upload --repository testpypi dist/*
+
+typecheck:
+	$(UV) run --group typing pyright
 
 upload: clean sdist wheel
-	uv run $(TWINE) upload dist/*
+	$(UV) run --group publish $(TWINE) upload dist/*
 
 wheel:
-	uv build --wheel
+	$(UV) build --wheel

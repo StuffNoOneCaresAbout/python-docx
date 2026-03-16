@@ -1,11 +1,23 @@
 # python-docx
 
-*python-docx* is a Python library for reading, creating, and updating Microsoft Word 2007+ (.docx) files.
+_python-docx_ is a Python library for reading, creating, and updating Microsoft Word 2007+ (.docx) files.
 
 ## Installation
 
 ```
 pip install python-docx
+```
+
+## Development
+
+This project is managed with [uv](https://github.com/astral-sh/uv).
+Supported Python versions are 3.13+.
+
+```
+uv sync
+uv run pytest -x
+uv run --group test behave --stop
+uv run --group docs sphinx-build -b html docs docs/.build/html
 ```
 
 ## Example
