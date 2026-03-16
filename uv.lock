@@ -777,13 +777,13 @@ dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
-    { name = "ruff", specifier = ">=0.11" },
+    { name = "ruff", specifier = ">=0.15.6" },
     { name = "sphinx", specifier = ">=9.1" },
     { name = "twine", specifier = ">=6.2.0" },
     { name = "types-lxml-multi-subclass", specifier = ">=2026.2.16" },
 ]
 docs = [{ name = "sphinx", specifier = ">=9.1" }]
-lint = [{ name = "ruff", specifier = ">=0.11" }]
+lint = [{ name = "ruff", specifier = ">=0.15.6" }]
 publish = [{ name = "twine", specifier = ">=6.2.0" }]
 test = [
     { name = "behave", specifier = ">=1.3.3" },
