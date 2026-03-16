@@ -37,7 +37,7 @@ test = [
 ]
 lint = ["ruff>=0.11"]
 typing = ["pyright>=1.1.408", "types-lxml-multi-subclass>=2025.11.25"]
-publish = ["twine>=6.1"]
+publish = ["twine>=6.2.0"]
 dev = [
     { include-group = "docs" },
     { include-group = "lint" },
