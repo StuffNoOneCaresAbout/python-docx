@@ -137,6 +137,13 @@ class CT_R(BaseOxmlElement):
             str(e) for e in self.xpath("w:br | w:cr | w:noBreakHyphen | w:ptab | w:t | w:tab")
         )
 
+    @property
+    def deleted_text(self) -> str:
+        """The textual content of deleted text stored in this run, if any."""
+        return "".join(
+            str(e) for e in self.xpath("w:br | w:cr | w:noBreakHyphen | w:ptab | w:delText | w:tab")
+        )
+
     @text.setter
     def text(self, text: str):  # pyright: ignore[reportIncompatibleMethodOverride]
         self.clear_content()

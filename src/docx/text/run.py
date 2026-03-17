@@ -9,6 +9,7 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_BREAK
 from docx.oxml.drawing import CT_Drawing
 from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
+from docx.revisions import TrackedDeletion, run_delete_tracked, run_replace_tracked_at
 from docx.shape import InlineShape
 from docx.shared import StoryChild
 from docx.styles.style import CharacterStyle
@@ -185,6 +186,11 @@ class Run(StoryChild):
         # -- `last_run`
         last_run._r.insert_comment_range_end_and_reference_below(comment_id)
 
+    def add_comment(self, text: str | None = "", author: str = "", initials: str | None = ""):
+        """Add a comment anchored to this run."""
+        document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
+        return document.add_comment(self, text=text, author=author, initials=initials)
+
     @property
     def style(self) -> CharacterStyle:
         """Read/write.
@@ -220,6 +226,11 @@ class Run(StoryChild):
         """
         return self._r.text
 
+    @property
+    def deleted_text(self) -> str:
+        """Deleted text stored in this run, if any."""
+        return self._r.deleted_text
+
     @text.setter
     def text(self, text: str):
         self._r.text = text
@@ -247,6 +258,14 @@ class Run(StoryChild):
     @underline.setter
     def underline(self, value: bool | WD_UNDERLINE | None):
         self.font.underline = value
+
+    def delete_tracked(self, author: str = "", revision_id: int | None = None) -> TrackedDeletion:
+        """Mark this run as deleted using tracked changes."""
+        return run_delete_tracked(self, author=author, revision_id=revision_id)
+
+    def replace_tracked_at(self, start: int, end: int, replace_text: str, author: str = "") -> None:
+        """Replace text at character offsets using tracked changes."""
+        run_replace_tracked_at(self, start, end, replace_text, author=author)
 
 
 class _Text:

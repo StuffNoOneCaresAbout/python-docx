@@ -85,4 +85,4 @@ class CT_Body(BaseOxmlElement):
         Elements appear in document order. Elements shaded by nesting in a `w:ins` or
         other "wrapper" element will not be included.
         """
-        return self.xpath("./w:p | ./w:tbl")
+        return self.xpath("./w:p | ./w:tbl | ./w:del/w:p | ./w:del/w:tbl")

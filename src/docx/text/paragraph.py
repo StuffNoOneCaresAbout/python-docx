@@ -5,7 +5,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterator, List, cast
 
 from docx.enum.style import WD_STYLE_TYPE
-from docx.oxml.text.run import CT_R
+from docx.revisions import (
+    TrackedChange,
+    TrackedDeletion,
+    TrackedInsertion,
+    paragraph_accepted_text,
+    paragraph_add_tracked_deletion,
+    paragraph_add_tracked_insertion,
+    paragraph_comment_range_runs,
+    paragraph_deleted_text,
+    paragraph_deletions,
+    paragraph_has_track_changes,
+    paragraph_insertions,
+    paragraph_iter_inner_content,
+    paragraph_replace_tracked,
+    paragraph_replace_tracked_at,
+    paragraph_track_changes,
+)
 from docx.shared import StoryChild
 from docx.styles.style import ParagraphStyle
 from docx.text.hyperlink import Hyperlink
@@ -91,7 +107,9 @@ class Paragraph(StoryChild):
             paragraph.style = style
         return paragraph
 
-    def iter_inner_content(self) -> Iterator[Run | Hyperlink]:
+    def iter_inner_content(
+        self, include_revisions: bool = False
+    ) -> Iterator[Run | Hyperlink | TrackedInsertion | TrackedDeletion]:
         """Generate the runs and hyperlinks in this paragraph, in the order they appear.
 
         The content in a paragraph consists of both runs and hyperlinks. This method
@@ -99,12 +117,7 @@ class Paragraph(StoryChild):
         precise position of the hyperlink within the paragraph text is important. Note
         that a hyperlink itself contains runs.
         """
-        for r_or_hlink in self._p.inner_content_elements:
-            yield (
-                Run(r_or_hlink, self)
-                if isinstance(r_or_hlink, CT_R)
-                else Hyperlink(r_or_hlink, self)
-            )
+        yield from paragraph_iter_inner_content(self, include_revisions=include_revisions)
 
     @property
     def paragraph_format(self):
@@ -126,6 +139,26 @@ class Paragraph(StoryChild):
         """Sequence of |Run| instances corresponding to the <w:r> elements in this
         paragraph."""
         return [Run(r, self) for r in self._p.r_lst]
+
+    @property
+    def has_track_changes(self) -> bool:
+        """True when this paragraph contains tracked insertions or deletions."""
+        return paragraph_has_track_changes(self)
+
+    @property
+    def insertions(self) -> List[TrackedInsertion]:
+        """Tracked insertions in this paragraph, in document order."""
+        return paragraph_insertions(self)
+
+    @property
+    def deletions(self) -> List[TrackedDeletion]:
+        """Tracked deletions in this paragraph, in document order."""
+        return paragraph_deletions(self)
+
+    @property
+    def track_changes(self) -> List[TrackedChange]:
+        """Tracked insertions and deletions in this paragraph, in document order."""
+        return paragraph_track_changes(self)
 
     @property
     def style(self) -> ParagraphStyle | None:
@@ -151,8 +184,9 @@ class Paragraph(StoryChild):
         """The textual content of this paragraph.
 
         The text includes the visible-text portion of any hyperlinks in the paragraph.
-        Tabs and line breaks in the XML are mapped to ``\\t`` and ``\\n`` characters
-        respectively.
+        Tabs and line breaks in the XML are mapped to ``\t`` and ``\n`` characters
+        respectively. Deleted content in tracked revisions is included; inserted
+        content is excluded.
 
         Assigning text to this property causes all existing paragraph content to be
         replaced with a single run containing the assigned text. A ``\\t`` character in
@@ -161,6 +195,16 @@ class Paragraph(StoryChild):
         is preserved. All run-level formatting, such as bold or italic, is removed.
         """
         return self._p.text
+
+    @property
+    def accepted_text(self) -> str:
+        """Visible paragraph text with tracked insertions included and deletions omitted."""
+        return paragraph_accepted_text(self)
+
+    @property
+    def deleted_text(self) -> str:
+        """Deleted-only text present in this paragraph's tracked revisions."""
+        return paragraph_deleted_text(self)
 
     @text.setter
     def text(self, text: str | None):
@@ -171,3 +215,58 @@ class Paragraph(StoryChild):
         """Return a newly created paragraph, inserted directly before this paragraph."""
         p = self._p.add_p_before()
         return Paragraph(p, self._parent)
+
+    def add_tracked_insertion(
+        self,
+        text: str | None = None,
+        style: str | CharacterStyle | None = None,
+        author: str = "",
+        revision_id: int | None = None,
+    ) -> TrackedInsertion:
+        """Append a tracked insertion containing a run with the specified text."""
+        return paragraph_add_tracked_insertion(
+            self, text=text, style=style, author=author, revision_id=revision_id
+        )
+
+    def add_tracked_deletion(
+        self, start: int, end: int, author: str = "", revision_id: int | None = None
+    ) -> TrackedDeletion | None:
+        """Wrap accepted-view text in a tracked deletion range."""
+        return paragraph_add_tracked_deletion(
+            self, start, end, author=author, revision_id=revision_id
+        )
+
+    def replace_tracked(self, search_text: str, replace_text: str, author: str = "") -> int:
+        """Replace all accepted-view occurrences using tracked deletion + insertion."""
+        return paragraph_replace_tracked(self, search_text, replace_text, author=author)
+
+    def replace_tracked_at(self, start: int, end: int, replace_text: str, author: str = "") -> None:
+        """Replace accepted-view text at offsets using tracked deletion + insertion."""
+        paragraph_replace_tracked_at(self, start, end, replace_text, author=author)
+
+    def add_comment(self, text: str | None = "", author: str = "", initials: str | None = ""):
+        """Add a comment spanning all runs in this paragraph."""
+        document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
+        if not self.runs:
+            run = self.add_run()
+            return document.add_comment(run, text=text, author=author, initials=initials)
+        return document.add_comment(self.runs, text=text, author=author, initials=initials)
+
+    def add_comment_range(
+        self,
+        start: int,
+        end: int,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+    ):
+        """Add a comment spanning accepted-text offsets within this paragraph.
+
+        Offsets are based on `accepted_text`, so tracked insertions are included and
+        tracked deletions are excluded.
+        """
+        document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
+        first_run, last_run = paragraph_comment_range_runs(self, start, end)
+        return document.add_comment(
+            [first_run, last_run], text=text, author=author, initials=initials
+        )

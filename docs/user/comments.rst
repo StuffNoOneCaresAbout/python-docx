@@ -68,10 +68,11 @@ empty string if not configured. *date* is also optional, but always set by Word 
 UTC date and time the comment was added, with seconds resolution (no milliseconds or
 microseconds).
 
-**Additional Features.** Later versions of Word allow a comment to be *resolved*. A
-comment in this state will appear grayed-out in the Word UI. Later versions of Word also
-allow a comment to be *replied to*, forming a *comment thread*. Neither of these
-features is supported by the initial implementation of comments in *python-docx*.
+**Additional Features.** Later versions of Word allow a top-level comment to be
+*resolved*. A comment in this state will appear grayed-out in the Word UI. Later
+versions of Word also allow a comment to be *replied to*, forming a *comment thread*.
+*python-docx* supports both replies and resolved-state metadata, but only for the
+top-level comment in a thread.
 
 **Applicability.** Note that comments cannot be added to a header or footer and cannot
 be nested inside a comment itself. In general the *python-docx* API will not allow these
@@ -108,6 +109,48 @@ A simple example is adding a comment to a paragraph::
     'I have this to say about that'
 
 The API documentation for :meth:`.Document.add_comment` provides further details.
+
+For convenience, a comment can also be added directly from a paragraph, run, or
+table cell::
+
+    >>> paragraph = document.add_paragraph("Hello, world!")
+    >>> comment = paragraph.add_comment("Please reword this.", author="Steve Canny")
+    >>> run = paragraph.runs[0]
+    >>> comment = run.add_comment("Comment on just this run.", author="Steve Canny")
+    >>> table = document.add_table(rows=1, cols=1)
+    >>> cell = table.cell(0, 0)
+    >>> cell.text = "Cell text"
+    >>> comment = cell.add_comment("Comment on this cell.", author="Steve Canny")
+
+Tracked changes also provide a convenience API. A comment can be anchored directly to
+an insertion or deletion::
+
+    >>> paragraph = document.add_paragraph("Hello")
+    >>> insertion = paragraph.add_tracked_insertion(" world", author="Editor")
+    >>> comment = insertion.add_comment("Please justify this insertion.", author="Reviewer")
+
+When added from a cell, the comment is anchored from the first run in the first
+paragraph of the cell to the last run in the last paragraph of the cell. This matches
+Word's XML model, where a so-called "cell comment" is really a comment range anchored
+inside the cell's paragraph content rather than on the cell element itself.
+
+For run-level tracked changes, Word stores the comment as an ordinary comment range
+that brackets the ``<w:ins>`` or ``<w:del>`` wrapper itself. For block-level tracked
+changes such as inserted or deleted paragraphs and tables, the comment is anchored to
+the first and last paragraph content inside the tracked block because comment markers
+still have to live on paragraph/run boundaries.
+
+When you need to anchor a comment to only part of a paragraph's text, use
+``Paragraph.add_comment_range(start, end, ...)`` with offsets measured against
+``paragraph.accepted_text``::
+
+    >>> paragraph = document.add_paragraph("South")
+    >>> comment = paragraph.add_comment_range(1, 3, "Comment on just 'ou'.")
+
+The method will split runs as needed so the comment range lands on proper run
+boundaries. In this first pass, range comments are limited to plain paragraph runs;
+selections that include deleted text, hyperlinks, or other non-run content raise
+``ValueError`` rather than guessing.
 
 
 Accessing and using the Comments collection
@@ -166,3 +209,28 @@ The author and initials metadata can be updated as desired::
     'John Smith'
     >>> comment.initials
     'JS'
+
+
+Resolving and reopening comments
+--------------------------------
+
+A top-level comment can be marked resolved or reopened using either the ``resolved``
+property or the convenience methods ``resolve()`` and ``reopen()``::
+
+    >>> comment.resolved
+    False
+    >>> comment.resolve()
+    >>> comment.resolved
+    True
+    >>> comment.resolved_at is not None
+    True
+    >>> comment.reopen()
+    >>> comment.resolved
+    False
+
+The ``resolved_at`` value records the UTC timestamp associated with the resolved-state
+metadata when that information is available in the document.
+
+Reply comments do not support independent resolved-state operations. This matches Word's
+review UI, which treats resolution as a property of the thread root rather than each
+individual reply.

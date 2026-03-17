@@ -104,7 +104,17 @@ class CT_P(BaseOxmlElement):
         Inner-content child elements like `w:r` and `w:hyperlink` are translated to
         their text equivalent.
         """
-        return "".join(e.text for e in self.xpath("w:r | w:hyperlink"))
+        return "".join(e.text for e in self.xpath("w:r | w:hyperlink | w:del"))
+
+    @property
+    def accepted_text(self) -> str:
+        """Visible paragraph text with insertions included and deletions omitted."""
+        return "".join(e.text for e in self.xpath("w:r | w:hyperlink | w:ins"))
+
+    @property
+    def deleted_text(self) -> str:
+        """Deleted-only text for this paragraph."""
+        return "".join(e.text for e in self.xpath("w:del"))
 
     def _insert_pPr(self, pPr: CT_PPr) -> CT_PPr:
         self.insert(0, pPr)

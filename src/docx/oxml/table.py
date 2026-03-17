@@ -518,7 +518,7 @@ class CT_Tc(BaseOxmlElement):
         Elements appear in document order. Elements shaded by nesting in a `w:ins` or
         other "wrapper" element will not be included.
         """
-        return self.xpath("./w:p | ./w:tbl")
+        return self.xpath("./w:p | ./w:tbl | ./w:del/w:p | ./w:del/w:tbl")
 
     def iter_block_items(self):
         """Generate a reference to each of the block-level content elements in this

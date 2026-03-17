@@ -3,6 +3,19 @@
 Release History
 ---------------
 
+master branch:
+++++++++++++++++++
+
+- Add support for tracked insertions and deletions (revisions)
+- Add `Paragraph.accepted_text`, `Paragraph.deleted_text`, and tracked-change helpers
+- Change `Paragraph.text` to include deleted text and exclude inserted text
+- Add paragraph/run comment convenience methods and comment resolution timestamp support
+- Add `_Cell.add_comment()` convenience for comments anchored to cell content
+- Add `Paragraph.add_comment_range()` for substring comments on accepted-view text
+- Add `TrackedChange.add_comment()` for comments on tracked insertions and deletions
+- Restrict comment resolution to top-level comments; replies are not independently resolvable
+
+
 1.2.0 (2025-06-16)
 ++++++++++++++++++
 

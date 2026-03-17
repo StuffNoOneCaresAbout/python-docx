@@ -112,6 +112,26 @@ register_element_cls("w15:people", CT_People)
 register_element_cls("w15:person", CT_Person)
 register_element_cls("w15:presenceInfo", CT_PresenceInfo)
 
+from .revisions import (
+    CT_PPrChange,
+    CT_RPrChange,
+    CT_RunTrackChange,
+    CT_SectPrChange,
+    CT_TblPrChange,
+    CT_TcPrChange,
+    CT_TrPrChange,
+)
+
+register_element_cls("w:ins", CT_RunTrackChange)
+register_element_cls("w:del", CT_RunTrackChange)
+register_element_cls("w:delText", CT_Text)
+register_element_cls("w:rPrChange", CT_RPrChange)
+register_element_cls("w:pPrChange", CT_PPrChange)
+register_element_cls("w:sectPrChange", CT_SectPrChange)
+register_element_cls("w:tblPrChange", CT_TblPrChange)
+register_element_cls("w:tcPrChange", CT_TcPrChange)
+register_element_cls("w:trPrChange", CT_TrPrChange)
+
 from .coreprops import CT_CoreProperties
 
 register_element_cls("cp:coreProperties", CT_CoreProperties)

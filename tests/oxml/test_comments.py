@@ -118,8 +118,8 @@ class DescribeCT_People:
             ),
         )
 
-        person = people.add_person("Copilot")
+        person = people.add_person("TestAuthor")
 
-        assert person.author == "Copilot"
+        assert person.author == "TestAuthor"
         assert person.presenceInfo is not None
-        assert people.get_person_by_author("Copilot") is person
+        assert people.get_person_by_author("TestAuthor") is person

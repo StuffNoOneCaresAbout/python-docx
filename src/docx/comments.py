@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Iterator
 from docx.blkcntnr import BlockItemContainer
 
 if TYPE_CHECKING:
-    from docx.oxml.comments import CT_Comment, CT_CommentEx, CT_Comments
+    from docx.oxml.comments import CT_Comment, CT_CommentEx, CT_CommentExtensible, CT_Comments
     from docx.parts.comments import CommentsPart
     from docx.styles.style import ParagraphStyle
     from docx.text.paragraph import Paragraph
@@ -214,11 +214,14 @@ class Comment(BlockItemContainer):
 
     @property
     def resolved(self) -> bool:
-        """True when this comment is marked resolved/done."""
+        """True when this top-level comment is marked resolved/done."""
+        if self.parent_para_id is not None:
+            return False
         return bool(self._comment_ex_elm.done) if self._comment_ex_elm is not None else False
 
     @resolved.setter
     def resolved(self, value: bool):
+        self._validate_resolution_supported()
         comment_ex = (
             self._comment_ex_elm
             if self._comment_ex_elm is not None
@@ -226,6 +229,26 @@ class Comment(BlockItemContainer):
         )
         comment_ex.done = value
         self._comment_ex_elm = comment_ex
+        if value:
+            self._comments_part.ensure_comment_extensible(
+                self._comment_elm, dt.datetime.now(dt.timezone.utc)
+            )
+
+    def resolve(self) -> None:
+        """Mark this comment resolved and stamp a resolution timestamp."""
+        self.resolved = True
+
+    def reopen(self) -> None:
+        """Mark this comment unresolved."""
+        self.resolved = False
+
+    @property
+    def resolved_at(self) -> dt.datetime | None:
+        """Timestamp associated with resolution metadata, when available."""
+        if self.parent_para_id is not None:
+            return None
+        comment_extensible = self._comment_extensible_elm
+        return comment_extensible.dateUtc if comment_extensible is not None else None
 
     @property
     def initials(self) -> str | None:
@@ -257,3 +280,11 @@ class Comment(BlockItemContainer):
         This attribute is optional in the XML, returns |None| if not set.
         """
         return self._comment_elm.date
+
+    def _validate_resolution_supported(self) -> None:
+        if self.parent_para_id is not None:
+            raise ValueError("reply comments do not support resolved state")
+
+    @property
+    def _comment_extensible_elm(self) -> CT_CommentExtensible | None:
+        return self._comments_part.comment_extensible_for(self._comment_elm)

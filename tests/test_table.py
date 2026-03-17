@@ -548,6 +548,96 @@ class Describe_Cell:
         assert isinstance(table, Table)
         assert cell._element.xml == snippet_seq("new-tbl")[1]
 
+    def it_can_add_a_comment_spanning_a_cell(self, parent_: Mock):
+        body = element("w:body/(w:p,w:tbl/(w:tblPr,w:tblGrid,w:tr/w:tc/w:p/w:r/w:t),w:p)")
+        tbl = Table(cast(CT_Tbl, body[1]), parent_)
+        cell = tbl.rows[0].cells[0]
+        part = cell.part
+        part._document_part = part
+        comment = part.comments.add_comment.return_value
+        comment.comment_id = 42
+
+        added_comment = cell.add_comment("Cell comment.", "Author", "AU")
+
+        part.comments.add_comment.assert_called_once_with(
+            text="Cell comment.", author="Author", initials="AU"
+        )
+        assert body.xml == xml(
+            "w:body/("
+            "w:p,"
+            "w:tbl/("
+            "w:tblPr,"
+            "w:tblGrid,"
+            "w:tr/w:tc/w:p/("
+            "w:commentRangeStart{w:id=42},"
+            "w:r/w:t,"
+            "w:commentRangeEnd{w:id=42},"
+            "w:r/(w:rPr/w:rStyle{w:val=CommentReference},w:commentReference{w:id=42})"
+            ")"
+            "),"
+            "w:p)"
+        )
+        assert added_comment is comment
+
+    def it_can_add_a_comment_to_an_empty_cell(self, parent_: Mock):
+        body = element("w:body/w:tbl/(w:tblPr,w:tblGrid,w:tr/w:tc/w:p)")
+        tbl = Table(cast(CT_Tbl, body[0]), parent_)
+        cell = tbl.rows[0].cells[0]
+        part = cell.part
+        part._document_part = part
+        comment = part.comments.add_comment.return_value
+        comment.comment_id = 42
+
+        cell.add_comment()
+
+        assert body.xml == xml(
+            "w:body/w:tbl/("
+            "w:tblPr,"
+            "w:tblGrid,"
+            "w:tr/w:tc/w:p/("
+            "w:commentRangeStart{w:id=42},"
+            "w:r,"
+            "w:commentRangeEnd{w:id=42},"
+            "w:r/(w:rPr/w:rStyle{w:val=CommentReference},w:commentReference{w:id=42})"
+            ")"
+            ")"
+        )
+
+    def it_can_add_a_comment_spanning_multiple_paragraphs_in_a_cell(self, parent_: Mock):
+        body = element(
+            'w:body/w:tbl/(w:tblPr,w:tblGrid,w:tr/w:tc/(w:p/w:r/w:t"Alpha",w:p/w:r/w:t"Beta"))'
+        )
+        tbl = Table(cast(CT_Tbl, body[0]), parent_)
+        cell = tbl.rows[0].cells[0]
+        part = cell.part
+        part._document_part = part
+        comment = part.comments.add_comment.return_value
+        comment.comment_id = 42
+
+        cell.add_comment()
+
+        assert body.xml == xml(
+            "w:body/w:tbl/("
+            "w:tblPr,"
+            "w:tblGrid,"
+            "w:tr/w:tc/("
+            'w:p/(w:commentRangeStart{w:id=42},w:r/w:t"Alpha"),'
+            'w:p/(w:r/w:t"Beta",w:commentRangeEnd{w:id=42},'
+            "w:r/(w:rPr/w:rStyle{w:val=CommentReference},w:commentReference{w:id=42}))"
+            ")"
+            ")"
+        )
+
+    def it_rejects_adding_a_comment_to_a_cell_outside_the_main_story(self, parent_: Mock):
+        cell = _Cell(cast(CT_Tc, element("w:tc/w:p")), parent_)
+        part = cell.part
+        part._document_part = object()
+
+        with pytest.raises(
+            ValueError, match="comments can only be added to cells in the main document story"
+        ):
+            cell.add_comment()
+
     def it_can_merge_itself_with_other_cells(
         self, tc_: Mock, tc_2_: Mock, parent_: Mock, merged_tc_: Mock
     ):

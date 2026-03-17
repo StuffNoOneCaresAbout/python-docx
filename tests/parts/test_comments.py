@@ -210,10 +210,10 @@ class DescribeCommentsPart:
         )
         package_.main_document_part._people_part = people_part
 
-        person = comments_part.ensure_person("Copilot")
+        person = comments_part.ensure_person("TestAuthor")
 
         assert person is not None
-        assert person.author == "Copilot"
+        assert person.author == "TestAuthor"
 
 
 class DescribeCommentsExtendedPart:

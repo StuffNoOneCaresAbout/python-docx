@@ -254,6 +254,26 @@ class DescribeComments:
 
         assert comment.resolved is True
 
+    def it_does_not_treat_replies_as_resolved_even_if_done_metadata_is_present(
+        self, package_: Mock
+    ):
+        comments, _ = _comments_with_extensions(
+            package_,
+            "w:comments/(w:comment{w:id=1},w:comment{w:id=2})",
+            (
+                '<w15:commentEx w15:paraId="00000001"/>'
+                '<w15:commentEx w15:paraId="00000002" w15:paraIdParent="00000001" '
+                'w15:done="1"/>'
+            ),
+        )
+
+        reply = comments.get(2)
+
+        assert reply is not None
+        assert reply.parent_comment is not None
+        assert reply.resolved is False
+        assert reply.resolved_at is None
+
     # -- fixtures --------------------------------------------------------------------------------
 
     @pytest.fixture
@@ -400,12 +420,39 @@ class DescribeComment:
     ):
         comment = Comment(cast(CT_Comment, element("w:comment{w:id=42}")), comments_part_)
         comments_part_.ensure_comment_ex.return_value = comment_ex_
+        comment_ex_.paraIdParent = None
 
         comment.resolved = True
 
         comments_part_.ensure_comment_ex.assert_called_once_with(comment._comment_elm)
         assert comment_ex_.done is True
         assert comment.resolved is True
+
+    def it_raises_when_attempting_to_resolve_a_reply(self, comments_part_: Mock):
+        comment = Comment(
+            cast(CT_Comment, element("w:comment{w:id=42}")),
+            comments_part_,
+            cast(
+                CT_CommentEx,
+                parse_xml(
+                    "<w15:commentEx "
+                    'xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" '
+                    'w15:paraIdParent="00000001"/>'
+                ),
+            ),
+        )
+
+        with pytest.raises(ValueError, match="reply comments do not support resolved state"):
+            comment.resolve()
+
+        with pytest.raises(ValueError, match="reply comments do not support resolved state"):
+            comment.reopen()
+
+        with pytest.raises(ValueError, match="reply comments do not support resolved state"):
+            comment.resolved = True
+
+        assert comment.resolved is False
+        assert comment.resolved_at is None
 
     # -- fixtures --------------------------------------------------------------------------------
 

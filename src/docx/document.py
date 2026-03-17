@@ -10,6 +10,7 @@ from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
 from docx.blkcntnr import BlockItemContainer
 from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_BREAK
+from docx.revisions import TrackedChange
 from docx.section import Section, Sections
 from docx.shared import ElementProxy, Emu, Inches, Length
 from docx.text.run import Run
@@ -193,12 +194,55 @@ class Document(ElementProxy):
         """Generate each `Paragraph` or `Table` in this document in document order."""
         return self._body.iter_inner_content()
 
+    def iter_comments(self) -> Iterator[Comment]:
+        """Generate comments in this document in comment-id order."""
+        yield from self.comments
+
+    @property
+    def track_changes(self) -> List[TrackedChange]:
+        """Tracked insertions and deletions across all top-level paragraphs and cells."""
+        changes: List[TrackedChange] = []
+        for paragraph in self.paragraphs:
+            changes.extend(paragraph.track_changes)
+        for table in self.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        changes.extend(paragraph.track_changes)
+        return changes
+
+    def accept_all(self) -> None:
+        """Accept every tracked change in the main document story."""
+        for change in list(self.track_changes):
+            change.accept()
+
+    def reject_all(self) -> None:
+        """Reject every tracked change in the main document story."""
+        for change in list(self.track_changes):
+            change.reject()
+
+    def find_and_replace_tracked(
+        self, search_text: str, replace_text: str, author: str = ""
+    ) -> int:
+        """Find and replace in accepted-view text using tracked revisions."""
+        total_count = 0
+        for paragraph in self.paragraphs:
+            total_count += paragraph.replace_tracked(search_text, replace_text, author=author)
+        for table in self.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        total_count += paragraph.replace_tracked(
+                            search_text, replace_text, author=author
+                        )
+        return total_count
+
     @property
     def paragraphs(self) -> List[Paragraph]:
         """The |Paragraph| instances in the document, in document order.
 
-        Note that paragraphs within revision marks such as ``<w:ins>`` or ``<w:del>`` do
-        not appear in this list.
+        Paragraphs wrapped in deletions are included. Paragraphs within insertions do not
+        appear in this list.
         """
         return self._body.paragraphs
 
@@ -236,8 +280,7 @@ class Document(ElementProxy):
 
         Note that only tables appearing at the top level of the document appear in this
         list; a table nested inside a table cell does not appear. A table within
-        revision marks such as ``<w:ins>`` or ``<w:del>`` will also not appear in the
-        list.
+        an insertion will also not appear in the list.
         """
         return self._body.tables
 

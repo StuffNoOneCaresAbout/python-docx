@@ -120,6 +120,19 @@ class CommentsPart(StoryPart):
             comment_id.durableId, date_utc
         )
 
+    def comment_extensible_for(self, comment_elm: CT_Comment) -> CT_CommentExtensible | None:
+        """Extensible metadata entry for `comment_elm`, or |None| if not present."""
+        comment_ex = self.comment_ex_for(comment_elm)
+        if comment_ex is None:
+            return None
+        comment_id = self.comments_ids_part.comment_id_for_para_id(comment_ex.paraId)
+        if comment_id is None:
+            return None
+        comments_extensible = self.comments_extensible_part._comments_extensible
+        return comments_extensible.get_comment_extensible_by_durable_id(
+            comment_id.durableId,
+        )
+
     def ensure_comment_id(self, comment_elm: CT_Comment) -> CT_CommentId:
         """Ensure durable comment-id metadata exists for `comment_elm`."""
         comment_ex = self.ensure_comment_ex(comment_elm)
