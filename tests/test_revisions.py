@@ -97,6 +97,65 @@ class DescribeRevisions:
         assert paragraph.accepted_text == "AlXYa"
         assert len(document.track_changes) == 2
 
+    def it_can_find_and_replace_with_tracking_in_nested_tables(self):
+        document = Document()
+        outer_table = document.add_table(rows=1, cols=1)
+        inner_table = outer_table.cell(0, 0).add_table(rows=1, cols=1)
+        paragraph = inner_table.cell(0, 0).paragraphs[0]
+        paragraph.text = "Alpha"
+
+        count = document.find_and_replace_tracked("ph", "XY", author="TestAuthor")
+
+        assert count == 1
+        assert paragraph.text == "Alpha"
+        assert paragraph.accepted_text == "AlXYa"
+
+    def it_does_not_search_headers_or_footers_unless_requested(self):
+        document = Document()
+        paragraph = document.sections[0].header.paragraphs[0]
+        paragraph.text = "Alpha"
+
+        count = document.find_and_replace_tracked("ph", "XY", author="TestAuthor")
+
+        assert count == 0
+        assert paragraph.text == "Alpha"
+        assert paragraph.accepted_text == "Alpha"
+
+    def it_can_optionally_find_and_replace_with_tracking_in_headers_and_footers(self):
+        document = Document()
+        header_paragraph = document.sections[0].header.paragraphs[0]
+        footer_paragraph = document.sections[0].footer.paragraphs[0]
+        header_paragraph.text = "Alpha"
+        footer_paragraph.text = "Graph"
+
+        count = document.find_and_replace_tracked(
+            "ph",
+            "XY",
+            author="TestAuthor",
+            include_headers_footers=True,
+        )
+
+        assert count == 2
+        assert header_paragraph.text == "Alpha"
+        assert header_paragraph.accepted_text == "AlXYa"
+        assert footer_paragraph.text == "Graph"
+        assert footer_paragraph.accepted_text == "GraXY"
+
+    def it_does_not_create_header_or_footer_parts_when_optionally_searching_them(self):
+        document = Document()
+        section = document.sections[0]
+        sectPr_xml_before = section._sectPr.xml  # pyright: ignore[reportPrivateUsage]
+
+        count = document.find_and_replace_tracked(
+            "ph",
+            "XY",
+            author="TestAuthor",
+            include_headers_footers=True,
+        )
+
+        assert count == 0
+        assert section._sectPr.xml == sectPr_xml_before  # pyright: ignore[reportPrivateUsage]
+
     def it_finds_matches_inside_existing_insertions(self):
         document = Document()
         paragraph = document.add_paragraph("Hello ")

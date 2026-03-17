@@ -222,19 +222,32 @@ class Document(ElementProxy):
             change.reject()
 
     def find_and_replace_tracked(
-        self, search_text: str, replace_text: str, author: str = ""
+        self,
+        search_text: str,
+        replace_text: str,
+        author: str = "",
+        *,
+        include_headers_footers: bool = False,
     ) -> int:
-        """Find and replace in accepted-view text using tracked revisions."""
+        """Find and replace in accepted-view text using tracked revisions.
+
+        Replacement always operates on `Paragraph.accepted_text`, meaning inserted
+        text is searchable and deleted text is ignored.
+
+        When `include_headers_footers` is |True|, existing header and footer story
+        parts are included in the traversal. Linked header/footer definitions are not
+        materialized merely to support this search; only already-defined parts are
+        traversed.
+        """
         total_count = 0
-        for paragraph in self.paragraphs:
+        for paragraph in _iter_paragraphs_in_container(self._body):
             total_count += paragraph.replace_tracked(search_text, replace_text, author=author)
-        for table in self.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for paragraph in cell.paragraphs:
-                        total_count += paragraph.replace_tracked(
-                            search_text, replace_text, author=author
-                        )
+        if include_headers_footers:
+            for header_footer in _iter_defined_header_footer_containers(self):
+                for paragraph in _iter_paragraphs_in_container(header_footer):
+                    total_count += paragraph.replace_tracked(
+                        search_text, replace_text, author=author
+                    )
         return total_count
 
     @property
@@ -318,3 +331,43 @@ class _Body(BlockItemContainer):
         """
         self._body.clear_content()
         return self
+
+
+def _iter_paragraphs_in_container(container: BlockItemContainer) -> Iterator[Paragraph]:
+    """Generate paragraphs in `container`, recursing into nested tables."""
+    yield from container.paragraphs
+
+    for table in container.tables:
+        yield from _iter_paragraphs_in_table(table)
+
+
+def _iter_paragraphs_in_table(table: Table) -> Iterator[Paragraph]:
+    """Generate paragraphs in `table`, recursing into nested tables in cells."""
+    for row in table.rows:
+        for cell in row.cells:
+            yield from _iter_paragraphs_in_container(cell)
+
+
+def _iter_defined_header_footer_containers(document: Document) -> Iterator[BlockItemContainer]:
+    """Generate each existing header/footer container once, without creating parts."""
+    seen_partnames: set[str] = set()
+
+    for section in document.sections:
+        for header_footer in (
+            section.header,
+            section.first_page_header,
+            section.even_page_header,
+            section.footer,
+            section.first_page_footer,
+            section.even_page_footer,
+        ):
+            if not header_footer._has_definition:  # pyright: ignore[reportPrivateUsage]
+                continue
+
+            definition = header_footer._definition  # pyright: ignore[reportPrivateUsage]
+            partname = str(definition.partname)
+            if partname in seen_partnames:
+                continue
+
+            seen_partnames.add(partname)
+            yield header_footer
