@@ -158,6 +158,115 @@ class DescribeRevisions:
         assert isinstance(changes[0], TrackedDeletion)
         assert isinstance(changes[1], TrackedInsertion)
 
+    def it_can_add_a_tracked_insertion_at_the_start_of_visible_text(self):
+        document = Document()
+        paragraph = document.add_paragraph("Alpha")
+
+        insertion = paragraph.add_tracked_insertion_at(0, "X", author="TestAuthor")
+
+        assert insertion.text == "X"
+        assert paragraph.accepted_text == "XAlpha"
+        assert paragraph.text == "Alpha"
+
+    def it_can_add_a_tracked_insertion_in_the_middle_of_visible_text(self):
+        document = Document()
+        paragraph = document.add_paragraph("Alpha")
+
+        insertion = paragraph.add_tracked_insertion_at(2, "X", author="TestAuthor")
+
+        assert insertion.text == "X"
+        assert paragraph.accepted_text == "AlXpha"
+        assert paragraph.text == "Alpha"
+
+    def it_can_add_a_tracked_insertion_at_the_end_of_visible_text(self):
+        document = Document()
+        paragraph = document.add_paragraph("Alpha")
+
+        insertion = paragraph.add_tracked_insertion_at(
+            len(paragraph.accepted_text),
+            "X",
+            author="TestAuthor",
+        )
+
+        assert insertion.text == "X"
+        assert paragraph.accepted_text == "AlphaX"
+        assert paragraph.text == "Alpha"
+
+    def it_can_add_a_tracked_insertion_inside_existing_visible_content(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello ")
+        paragraph.add_tracked_insertion("World", author="TestAuthor", revision_id=1)
+
+        insertion = paragraph.add_tracked_insertion_at(8, "NEW", author="TestAuthor")
+
+        assert insertion.text == "NEW"
+        assert paragraph.accepted_text == "Hello WoNEWrld"
+        assert any(existing.text == "NEW" for existing in paragraph.insertions)
+
+    def it_uses_accepted_text_offsets_when_inserting_with_deletions_present(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+        paragraph.add_tracked_deletion(0, 5, author="TestAuthor", revision_id=1)
+
+        insertion = paragraph.add_tracked_insertion_at(1, "Brave", author="TestAuthor")
+
+        assert insertion.text == "Brave"
+        assert paragraph.accepted_text == " BraveWorld"
+        assert paragraph.text == "Hello World"
+
+    def it_can_add_a_tracked_insertion_before_a_unique_match(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+
+        insertion = paragraph.add_tracked_insertion_before("World", "Brave ", author="TestAuthor")
+
+        assert insertion.text == "Brave "
+        assert paragraph.accepted_text == "Hello Brave World"
+
+    def it_can_add_a_tracked_insertion_after_a_unique_match(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+
+        insertion = paragraph.add_tracked_insertion_after("Hello", ", dear", author="TestAuthor")
+
+        assert insertion.text == ", dear"
+        assert paragraph.accepted_text == "Hello, dear World"
+
+    def it_can_add_a_tracked_insertion_before_text_spanning_normal_and_inserted_content(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello ")
+        paragraph.add_tracked_insertion("Brave ", author="TestAuthor", revision_id=1)
+        paragraph.add_run("World")
+
+        insertion = paragraph.add_tracked_insertion_before(
+            "Brave World", "Dear ", author="TestAuthor"
+        )
+
+        assert insertion.text == "Dear "
+        assert paragraph.accepted_text == "Hello Dear Brave World"
+
+    def it_rejects_add_tracked_insertion_before_when_search_text_is_missing(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+
+        with pytest.raises(ValueError, match="not found"):
+            paragraph.add_tracked_insertion_before("Nope", "X", author="TestAuthor")
+
+    def it_rejects_add_tracked_insertion_after_when_search_text_is_ambiguous(self):
+        document = Document()
+        paragraph = document.add_paragraph("World and World again")
+
+        with pytest.raises(ValueError, match="multiple"):
+            paragraph.add_tracked_insertion_after("World", "X", author="TestAuthor")
+
+    def it_ignores_deleted_only_text_when_searching_for_insertion_position(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+        paragraph.add_tracked_deletion(0, 5, author="TestAuthor", revision_id=1)
+
+        with pytest.raises(ValueError, match="not found"):
+            paragraph.add_tracked_insertion_before("Hello", "X", author="TestAuthor")
+
     def it_can_reject_all_tracked_changes_in_the_document(self):
         document = Document()
         first = document.add_paragraph("Alpha")

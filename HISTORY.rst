@@ -9,6 +9,7 @@ master branch:
 - Add support for tracked insertions and deletions (revisions)
 - Add `Paragraph.accepted_text`, `Paragraph.deleted_text`, and tracked-change helpers
 - Change `Paragraph.text` to include deleted text and exclude inserted text
+- Add `Paragraph.add_tracked_insertion_at()`, `_before()`, and `_after()`
 - Add paragraph/run comment convenience methods and comment resolution timestamp support
 - Add `_Cell.add_comment()` convenience for comments anchored to cell content
 - Add `Paragraph.add_comment_range()` for substring comments on accepted-view text

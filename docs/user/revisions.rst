@@ -62,6 +62,19 @@ objects::
     >>> paragraph.add_tracked_insertion("Beta", author="Editor")
     >>> paragraph.add_tracked_deletion(1, 4, author="Editor")
 
+Tracked insertion can also target a visible-text position or a unique accepted-text
+match::
+
+    >>> paragraph = document.add_paragraph("Hello World")
+    >>> paragraph.add_tracked_insertion_at(6, "Brave ", author="Editor")
+    >>> paragraph.add_tracked_insertion_before("World", "Really ", author="Editor")
+    >>> paragraph.add_tracked_insertion_after("Hello", ", there", author="Editor")
+
+These insertion helpers use ``accepted_text`` coordinates and search semantics, so
+existing insertions are counted as visible text and deleted text is ignored. The
+search-based methods require exactly one match and raise ``ValueError`` when the text
+is missing or ambiguous.
+
 Run-level deletion and replacement are also available::
 
     >>> run = paragraph.runs[0]

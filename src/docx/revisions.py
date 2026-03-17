@@ -393,6 +393,167 @@ def paragraph_add_tracked_insertion(
     return tracked_insertion
 
 
+def _new_tracked_insertion(
+    paragraph,
+    text=None,
+    style=None,
+    author: str = "",
+    revision_id: int | None = None,
+):
+    """Return a tracked insertion element/proxy pair not yet placed in the paragraph."""
+    if revision_id is None:
+        revision_id = next_revision_id(paragraph._p)
+    now = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    ins = OxmlElement("w:ins", attrs=revision_attrs(revision_id, author, now))
+    r = OxmlElement("w:r")
+    ins.append(r)
+    tracked_insertion = TrackedInsertion(ins, paragraph)  # pyright: ignore[reportArgumentType]
+    if text:
+        for run in tracked_insertion.runs:
+            run.text = text
+    if style:
+        for run in tracked_insertion.runs:
+            run.style = style
+    return ins, tracked_insertion
+
+
+def _insert_element_at_accepted_offset(paragraph, offset: int, element) -> None:
+    """Insert `element` at an accepted-text boundary in `paragraph`."""
+    accepted_text = paragraph.accepted_text
+    if offset < 0 or offset > len(accepted_text):
+        raise ValueError(f"Invalid offset: offset={offset} for text of length {len(accepted_text)}")
+
+    spans = _paragraph_accepted_spans(paragraph)
+    if not spans:
+        paragraph._p.append(element)
+        return
+
+    if offset == 0:
+        spans[0].element.addprevious(element)
+        return
+
+    for idx, span in enumerate(spans):
+        if offset == span.start:
+            span.element.addprevious(element)
+            return
+
+        if span.start < offset < span.end:
+            parent = span.element.getparent()
+            if parent is None:
+                raise ValueError("Paragraph element has no parent")
+
+            split_at = offset - span.start
+            before_text = span.text[:split_at]
+            after_text = span.text[split_at:]
+            index = list(parent).index(span.element)
+            parent.remove(span.element)
+
+            insert_idx = index
+            if before_text:
+                parent.insert(insert_idx, _make_visible_fragment(span, before_text))
+                insert_idx += 1
+
+            parent.insert(insert_idx, element)
+            insert_idx += 1
+
+            if after_text:
+                parent.insert(insert_idx, _make_visible_fragment(span, after_text))
+            return
+
+        if offset == span.end:
+            next_span = spans[idx + 1] if idx + 1 < len(spans) else None
+            if next_span is not None and next_span.start == offset:
+                next_span.element.addprevious(element)
+            else:
+                span.element.addnext(element)
+            return
+
+    raise ValueError(f"Invalid offset: offset={offset} for text of length {len(accepted_text)}")
+
+
+def paragraph_add_tracked_insertion_at(
+    paragraph,
+    offset: int,
+    text=None,
+    style=None,
+    author: str = "",
+    revision_id: int | None = None,
+):
+    """Insert a tracked insertion at `offset` in accepted/visible paragraph text."""
+    ins, tracked_insertion = _new_tracked_insertion(
+        paragraph,
+        text=text,
+        style=style,
+        author=author,
+        revision_id=revision_id,
+    )
+    _insert_element_at_accepted_offset(paragraph, offset, ins)
+    return tracked_insertion
+
+
+def _tracked_insertion_search_offset(paragraph, search_text: str, *, after: bool) -> int:
+    """Return insertion offset for a unique `search_text` match in accepted text."""
+    if not search_text:
+        raise ValueError("search text must not be empty")
+
+    accepted_text = paragraph.accepted_text
+    positions: list[int] = []
+    start = 0
+    while True:
+        idx = accepted_text.find(search_text, start)
+        if idx == -1:
+            break
+        positions.append(idx)
+        start = idx + len(search_text)
+
+    if not positions:
+        raise ValueError(f"search text not found: {search_text!r}")
+    if len(positions) > 1:
+        raise ValueError(f"search text matched multiple occurrences: {search_text!r}")
+
+    return positions[0] + (len(search_text) if after else 0)
+
+
+def paragraph_add_tracked_insertion_before(
+    paragraph,
+    search_text: str,
+    text=None,
+    style=None,
+    author: str = "",
+    revision_id: int | None = None,
+):
+    """Insert tracked text before a unique `search_text` match in accepted text."""
+    offset = _tracked_insertion_search_offset(paragraph, search_text, after=False)
+    return paragraph_add_tracked_insertion_at(
+        paragraph,
+        offset,
+        text=text,
+        style=style,
+        author=author,
+        revision_id=revision_id,
+    )
+
+
+def paragraph_add_tracked_insertion_after(
+    paragraph,
+    search_text: str,
+    text=None,
+    style=None,
+    author: str = "",
+    revision_id: int | None = None,
+):
+    """Insert tracked text after a unique `search_text` match in accepted text."""
+    offset = _tracked_insertion_search_offset(paragraph, search_text, after=True)
+    return paragraph_add_tracked_insertion_at(
+        paragraph,
+        offset,
+        text=text,
+        style=style,
+        author=author,
+        revision_id=revision_id,
+    )
+
+
 def _paragraph_accepted_spans(paragraph) -> List[_AcceptedSpan]:
     from docx.text.run import Run
 
@@ -714,6 +875,9 @@ __all__ = [
     "paragraph_accepted_text",
     "paragraph_add_tracked_deletion",
     "paragraph_add_tracked_insertion",
+    "paragraph_add_tracked_insertion_after",
+    "paragraph_add_tracked_insertion_at",
+    "paragraph_add_tracked_insertion_before",
     "paragraph_comment_range_runs",
     "paragraph_deleted_text",
     "paragraph_deletions",

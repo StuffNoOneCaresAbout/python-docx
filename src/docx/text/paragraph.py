@@ -12,6 +12,9 @@ from docx.revisions import (
     paragraph_accepted_text,
     paragraph_add_tracked_deletion,
     paragraph_add_tracked_insertion,
+    paragraph_add_tracked_insertion_after,
+    paragraph_add_tracked_insertion_at,
+    paragraph_add_tracked_insertion_before,
     paragraph_comment_range_runs,
     paragraph_deleted_text,
     paragraph_deletions,
@@ -226,6 +229,60 @@ class Paragraph(StoryChild):
         """Append a tracked insertion containing a run with the specified text."""
         return paragraph_add_tracked_insertion(
             self, text=text, style=style, author=author, revision_id=revision_id
+        )
+
+    def add_tracked_insertion_at(
+        self,
+        offset: int,
+        text: str | None = None,
+        style: str | CharacterStyle | None = None,
+        author: str = "",
+        revision_id: int | None = None,
+    ) -> TrackedInsertion:
+        """Insert a tracked insertion at `offset` in `accepted_text`."""
+        return paragraph_add_tracked_insertion_at(
+            self,
+            offset,
+            text=text,
+            style=style,
+            author=author,
+            revision_id=revision_id,
+        )
+
+    def add_tracked_insertion_before(
+        self,
+        search_text: str,
+        text: str | None = None,
+        style: str | CharacterStyle | None = None,
+        author: str = "",
+        revision_id: int | None = None,
+    ) -> TrackedInsertion:
+        """Insert tracked text before a unique `search_text` match in `accepted_text`."""
+        return paragraph_add_tracked_insertion_before(
+            self,
+            search_text,
+            text=text,
+            style=style,
+            author=author,
+            revision_id=revision_id,
+        )
+
+    def add_tracked_insertion_after(
+        self,
+        search_text: str,
+        text: str | None = None,
+        style: str | CharacterStyle | None = None,
+        author: str = "",
+        revision_id: int | None = None,
+    ) -> TrackedInsertion:
+        """Insert tracked text after a unique `search_text` match in `accepted_text`."""
+        return paragraph_add_tracked_insertion_after(
+            self,
+            search_text,
+            text=text,
+            style=style,
+            author=author,
+            revision_id=revision_id,
         )
 
     def add_tracked_deletion(
