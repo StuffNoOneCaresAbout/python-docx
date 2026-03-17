@@ -311,14 +311,13 @@ class Paragraph(StoryChild):
     ):
         """Add a comment spanning all runs in this paragraph."""
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
+        comment_kwargs = {"text": text, "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
         if not self.runs:
             run = self.add_run()
-            return document.add_comment(
-                run, text=text, author=author, initials=initials, timestamp=timestamp
-            )
-        return document.add_comment(
-            self.runs, text=text, author=author, initials=initials, timestamp=timestamp
-        )
+            return document.add_comment(run, **comment_kwargs)
+        return document.add_comment(self.runs, **comment_kwargs)
 
     def add_comment_range(
         self,
@@ -336,10 +335,7 @@ class Paragraph(StoryChild):
         """
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
         first_run, last_run = paragraph_comment_range_runs(self, start, end)
-        return document.add_comment(
-            [first_run, last_run],
-            text=text,
-            author=author,
-            initials=initials,
-            timestamp=timestamp,
-        )
+        comment_kwargs = {"text": text, "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+        return document.add_comment([first_run, last_run], **comment_kwargs)

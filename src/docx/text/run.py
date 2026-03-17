@@ -196,9 +196,10 @@ class Run(StoryChild):
     ):
         """Add a comment anchored to this run."""
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
-        return document.add_comment(
-            self, text=text, author=author, initials=initials, timestamp=timestamp
-        )
+        comment_kwargs = {"text": text, "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+        return document.add_comment(self, **comment_kwargs)
 
     @property
     def style(self) -> CharacterStyle:

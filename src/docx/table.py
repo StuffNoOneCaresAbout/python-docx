@@ -68,9 +68,11 @@ class Table(StoryChild):
         if self.part is not self.part._document_part:  # pyright: ignore[reportPrivateUsage]
             raise ValueError("comments can only be added to tables in the main document story")
 
-        comment = self.part.comments.add_comment(
-            text=text or "", author=author, initials=initials, timestamp=timestamp
-        )
+        comment_kwargs = {"text": text or "", "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
+        comment = self.part.comments.add_comment(**comment_kwargs)
         self._tbl.insert_comment_range_start_above(comment.comment_id)
         self._tbl.insert_comment_range_end_and_reference_below(comment.comment_id)
         return comment
@@ -262,9 +264,11 @@ class _Cell(BlockItemContainer):
         if self.part is not self.part._document_part:  # pyright: ignore[reportPrivateUsage]
             raise ValueError("comments can only be added to cells in the main document story")
 
-        comment = self.part.comments.add_comment(
-            text=text or "", author=author, initials=initials, timestamp=timestamp
-        )
+        comment_kwargs = {"text": text or "", "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
+        comment = self.part.comments.add_comment(**comment_kwargs)
         self._first_comment_anchor_run.mark_comment_range(
             self._last_comment_anchor_run, comment.comment_id
         )

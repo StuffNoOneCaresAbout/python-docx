@@ -79,10 +79,12 @@ class Document(ElementProxy):
         """
         from docx.table import Table
 
+        comment_kwargs = {"text": text, "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
         if isinstance(runs, Table):
-            return runs.add_comment(
-                text=text, author=author, initials=initials, timestamp=timestamp
-            )
+            return runs.add_comment(**comment_kwargs)
 
         # -- normalize `runs` to a sequence of runs --
         runs = [runs] if isinstance(runs, Run) else runs
@@ -97,9 +99,7 @@ class Document(ElementProxy):
             )
 
         # -- Note that comments can only appear in the document part --
-        comment = self.comments.add_comment(
-            text=text, author=author, initials=initials, timestamp=timestamp
-        )
+        comment = self.comments.add_comment(**comment_kwargs)
 
         # -- let the first run orchestrate placement of the comment range start and end --
         first_run.mark_comment_range(last_run, comment.comment_id)

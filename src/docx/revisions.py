@@ -137,17 +137,21 @@ class TrackedChange(Parented):
                 "comments can only be added to tracked changes in the main document story"
             )
 
+        comment_kwargs: dict[str, str | dt.datetime | None] = {
+            "text": text or "",
+            "author": author,
+            "initials": initials,
+        }
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
         if self.is_run_level:
-            comment = self.part.comments.add_comment(
-                text=text or "", author=author, initials=initials, timestamp=timestamp
-            )
+            comment = self.part.comments.add_comment(**comment_kwargs)
             self._insert_comment_range_around_revision(comment.comment_id)
             return comment
 
         first_run, last_run = self._comment_anchor_runs()
-        comment = self.part.comments.add_comment(
-            text=text or "", author=author, initials=initials, timestamp=timestamp
-        )
+        comment = self.part.comments.add_comment(**comment_kwargs)
         first_run.mark_comment_range(last_run, comment.comment_id)
         return comment
 
