@@ -124,7 +124,11 @@ class TrackedChange(Parented):
         return bool(self._element.run_content_elements)
 
     def add_comment(
-        self, text: str | None = "", author: str = "", initials: str | None = ""
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
     ) -> Comment:
         """Add a comment anchored to the content of this tracked change."""
         document_part = getattr(self.part, "_document_part", None)
@@ -135,13 +139,15 @@ class TrackedChange(Parented):
 
         if self.is_run_level:
             comment = self.part.comments.add_comment(
-                text=text or "", author=author, initials=initials
+                text=text or "", author=author, initials=initials, timestamp=timestamp
             )
             self._insert_comment_range_around_revision(comment.comment_id)
             return comment
 
         first_run, last_run = self._comment_anchor_runs()
-        comment = self.part.comments.add_comment(text=text or "", author=author, initials=initials)
+        comment = self.part.comments.add_comment(
+            text=text or "", author=author, initials=initials, timestamp=timestamp
+        )
         first_run.mark_comment_range(last_run, comment.comment_id)
         return comment
 

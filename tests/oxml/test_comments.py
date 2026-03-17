@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import cast
 
 import pytest
@@ -56,6 +57,17 @@ class DescribeCT_Comments:
         assert comment.p_lst[0].paraId == "0000002A"
         assert comment.p_lst[0].textId == "77777777"
 
+    def it_can_write_a_word_style_local_comment_date(self):
+        comments_elm = cast(CT_Comments, element("w:comments"))
+        comment = comments_elm.add_comment(42)
+
+        comment.set_local_date(
+            dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+        )
+
+        date_attr = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}date"
+        assert comment.get(date_attr) == "2025-06-11T20:42:30"
+
 
 class DescribeCT_CommentsEx:
     def it_can_add_a_comment_extension(self):
@@ -106,6 +118,30 @@ class DescribeCT_CommentsExtensible:
         assert (
             comments_extensible.get_comment_extensible_by_durable_id("0000000A")
             is comment_extensible
+        )
+
+    def it_normalizes_extensible_comment_timestamps_to_whole_seconds(self):
+        comments_extensible = cast(
+            CT_CommentsExtensible,
+            parse_xml(
+                '<w16cex:commentsExtensible xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex"/>'
+            ),
+        )
+        timestamp = dt.datetime(
+            2025,
+            6,
+            11,
+            20,
+            42,
+            30,
+            987654,
+            tzinfo=dt.timezone(dt.timedelta(hours=8)),
+        )
+
+        comment_extensible = comments_extensible.add_comment_extensible("0000000A", timestamp)
+
+        assert comment_extensible.dateUtc == dt.datetime(
+            2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc
         )
 
 

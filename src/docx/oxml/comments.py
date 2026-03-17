@@ -8,7 +8,7 @@ import datetime as dt
 import hashlib
 from typing import TYPE_CHECKING, Callable, cast
 
-from docx.oxml.ns import nsdecls
+from docx.oxml.ns import nsdecls, qn
 from docx.oxml.parser import parse_xml
 from docx.oxml.simpletypes import (
     ST_DateTime,
@@ -142,6 +142,10 @@ class CT_Comment(BaseOxmlElement):
         """Generate all `w:p` and `w:tbl` elements in this comment."""
         return self.xpath("./w:p | ./w:tbl")
 
+    def set_local_date(self, value: dt.datetime) -> None:
+        """Set `w:date` using Word-style local authored time serialization."""
+        self.set(qn("w:date"), value.replace(tzinfo=None).isoformat(timespec="seconds"))
+
 
 class CT_CommentsEx(BaseOxmlElement):
     """`w15:commentsEx` element, root element for comment extension metadata."""
@@ -217,8 +221,8 @@ class CT_CommentsExtensible(BaseOxmlElement):
     ) -> CT_CommentExtensible:
         if date_utc is None:
             date_utc = dt.datetime.now(dt.timezone.utc)
-        date_utc = date_utc.astimezone(dt.timezone.utc)
-        date_utc_str = date_utc.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        date_utc = date_utc.astimezone(dt.timezone.utc).replace(microsecond=0)
+        date_utc_str = date_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
         comment_extensible = cast(
             CT_CommentExtensible,
             parse_xml(

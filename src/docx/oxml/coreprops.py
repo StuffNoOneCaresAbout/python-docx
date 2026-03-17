@@ -262,6 +262,8 @@ class CT_CoreProperties(BaseOxmlElement):
         if not isinstance(value, dt.datetime):  # pyright: ignore[reportUnnecessaryIsInstance]
             tmpl = "property requires <type 'datetime.datetime'> object, got %s"
             raise ValueError(tmpl % type(value))
+        if value.tzinfo is not None:
+            value = value.astimezone(dt.timezone.utc)
         element = self._get_or_add(prop_name)
         dt_str = value.strftime("%Y-%m-%dT%H:%M:%SZ")
         element.text = dt_str

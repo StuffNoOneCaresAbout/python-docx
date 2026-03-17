@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import TYPE_CHECKING, Iterator, cast, overload
 
 from typing_extensions import TypeAlias
@@ -57,13 +58,19 @@ class Table(StoryChild):
         return _Row(tr, self)
 
     def add_comment(
-        self, text: str | None = "", author: str = "", initials: str | None = ""
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
     ) -> Comment:
         """Add a comment spanning this entire table."""
         if self.part is not self.part._document_part:  # pyright: ignore[reportPrivateUsage]
             raise ValueError("comments can only be added to tables in the main document story")
 
-        comment = self.part.comments.add_comment(text=text or "", author=author, initials=initials)
+        comment = self.part.comments.add_comment(
+            text=text or "", author=author, initials=initials, timestamp=timestamp
+        )
         self._tbl.insert_comment_range_start_above(comment.comment_id)
         self._tbl.insert_comment_range_end_and_reference_below(comment.comment_id)
         return comment
@@ -240,7 +247,11 @@ class _Cell(BlockItemContainer):
         return table
 
     def add_comment(
-        self, text: str | None = "", author: str = "", initials: str | None = ""
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
     ) -> Comment:
         """Add a comment spanning the visible content boundaries of this cell.
 
@@ -251,7 +262,9 @@ class _Cell(BlockItemContainer):
         if self.part is not self.part._document_part:  # pyright: ignore[reportPrivateUsage]
             raise ValueError("comments can only be added to cells in the main document story")
 
-        comment = self.part.comments.add_comment(text=text or "", author=author, initials=initials)
+        comment = self.part.comments.add_comment(
+            text=text or "", author=author, initials=initials, timestamp=timestamp
+        )
         self._first_comment_anchor_run.mark_comment_range(
             self._last_comment_anchor_run, comment.comment_id
         )

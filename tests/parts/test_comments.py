@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import cast
 
 import pytest
@@ -196,6 +197,26 @@ class DescribeCommentsPart:
 
         assert comment_extensible.durableId == "00000001"
         assert comment_extensible.dateUtc is not None
+
+    def it_updates_existing_extensible_metadata_when_a_new_timestamp_is_provided(
+        self, package_: Mock
+    ):
+        comments_extensible_part = CommentsExtensiblePart(
+            PackURI("/word/commentsExtensible.xml"),
+            CT.WML_COMMENTS_EXTENSIBLE,
+            _comments_extensible_elm(
+                '<w16cex:commentExtensible w16cex:durableId="0000000A" '
+                'w16cex:dateUtc="2025-06-11T12:42:30Z"/>'
+            ),
+            package_,
+        )
+        timestamp = dt.datetime(2025, 6, 12, 9, 15, 0, tzinfo=dt.timezone.utc)
+
+        comment_extensible = comments_extensible_part.ensure_comment_extensible(
+            "0000000A", timestamp
+        )
+
+        assert comment_extensible.dateUtc == timestamp
 
     def it_can_ensure_a_person_for_threaded_comment_authors(self, package_: Mock):
         comments_elm = cast(CT_Comments, element("w:comments"))

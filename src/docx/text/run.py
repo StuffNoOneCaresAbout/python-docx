@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import IO, TYPE_CHECKING, Iterator, cast
 
 from docx.drawing import Drawing
@@ -186,10 +187,18 @@ class Run(StoryChild):
         # -- `last_run`
         last_run._r.insert_comment_range_end_and_reference_below(comment_id)
 
-    def add_comment(self, text: str | None = "", author: str = "", initials: str | None = ""):
+    def add_comment(
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
+    ):
         """Add a comment anchored to this run."""
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
-        return document.add_comment(self, text=text, author=author, initials=initials)
+        return document.add_comment(
+            self, text=text, author=author, initials=initials, timestamp=timestamp
+        )
 
     @property
     def style(self) -> CharacterStyle:

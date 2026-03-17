@@ -175,6 +175,54 @@ class DescribeComments:
         )
         assert package_.main_document_part._people_part.element.person_lst == []
 
+    def it_can_add_a_new_comment_with_a_specified_timestamp(self, package_: Mock):
+        comments_elm = cast(CT_Comments, element("w:comments"))
+        comments_part = CommentsPart(
+            PackURI("/word/comments.xml"),
+            CT.WML_COMMENTS,
+            comments_elm,
+            package_,
+        )
+        comments = Comments(comments_elm, comments_part)
+        timestamp = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+
+        comment = comments.add_comment(timestamp=timestamp)
+
+        assert comment.timestamp == dt.datetime(2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc)
+        assert comment._comment_elm.get(qn("w:date")) == "2025-06-11T20:42:30"
+        comment_id = package_.main_document_part._comments_ids_part.element.commentId_lst[0]
+        assert comment_id.paraId == comment.para_id
+        comment_extensible = (
+            package_.main_document_part._comments_extensible_part.element.commentExtensible_lst[0]
+        )
+        assert comment_extensible.durableId == comment_id.durableId
+        assert comment_extensible.dateUtc == comment.timestamp
+
+    def it_normalizes_specified_comment_timestamps_to_whole_seconds(self, package_: Mock):
+        comments_elm = cast(CT_Comments, element("w:comments"))
+        comments_part = CommentsPart(
+            PackURI("/word/comments.xml"),
+            CT.WML_COMMENTS,
+            comments_elm,
+            package_,
+        )
+        comments = Comments(comments_elm, comments_part)
+        timestamp = dt.datetime(
+            2025,
+            6,
+            11,
+            20,
+            42,
+            30,
+            987654,
+            tzinfo=dt.timezone(dt.timedelta(hours=8)),
+        )
+
+        comment = comments.add_comment(timestamp=timestamp)
+
+        assert comment.timestamp == dt.datetime(2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc)
+        assert comment._comment_elm.get(qn("w:date")) == "2025-06-11T20:42:30"
+
     def and_it_can_add_text_to_the_comment_when_adding_it(self, comments: Comments, package_: Mock):
         comment = comments.add_comment(text="para 1\n\npara 2")
 
@@ -246,6 +294,20 @@ class DescribeComments:
             ")"
         )
 
+    def it_can_add_a_reply_with_a_specified_timestamp(self, package_: Mock):
+        comments, _ = _comments_with_extensions(package_)
+        parent = comments.add_comment("Parent")
+        timestamp = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+
+        reply = parent.add_reply("Reply", author="Steve", initials="SC", timestamp=timestamp)
+
+        assert reply.timestamp == dt.datetime(2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc)
+        assert reply._comment_elm.get(qn("w:date")) == "2025-06-11T20:42:30"
+        comment_extensible = (
+            package_.main_document_part._comments_extensible_part.element.commentExtensible_lst[0]
+        )
+        assert comment_extensible.dateUtc == reply.timestamp
+
     def it_can_mark_a_comment_resolved(self, package_: Mock):
         comments, _ = _comments_with_extensions(package_)
         comment = comments.add_comment("Needs review")
@@ -253,6 +315,29 @@ class DescribeComments:
         comment.resolved = True
 
         assert comment.resolved is True
+
+    def it_can_mark_a_comment_resolved_with_a_specified_timestamp(self, package_: Mock):
+        comments, _ = _comments_with_extensions(package_)
+        comment = comments.add_comment("Needs review")
+        timestamp = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+
+        comment.resolve(timestamp=timestamp)
+
+        assert comment.resolved is True
+        assert comment.resolved_at == dt.datetime(2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc)
+
+    def it_preserves_authored_timestamp_when_resolution_overwrites_extensible_metadata(
+        self, package_: Mock
+    ):
+        comments, _ = _comments_with_extensions(package_)
+        authored = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+        resolved = dt.datetime(2025, 6, 12, 9, 15, 0, tzinfo=dt.timezone.utc)
+
+        comment = comments.add_comment("Needs review", timestamp=authored)
+        comment.resolve(timestamp=resolved)
+
+        assert comment.timestamp == dt.datetime(2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc)
+        assert comment.resolved_at == resolved
 
     def it_does_not_treat_replies_as_resolved_even_if_done_metadata_is_present(
         self, package_: Mock
@@ -427,6 +512,20 @@ class DescribeComment:
         comments_part_.ensure_comment_ex.assert_called_once_with(comment._comment_elm)
         assert comment_ex_.done is True
         assert comment.resolved is True
+
+    def it_can_stamp_a_specified_resolution_timestamp(
+        self, comments_part_: Mock, comment_ex_: Mock
+    ):
+        comment = Comment(cast(CT_Comment, element("w:comment{w:id=42}")), comments_part_)
+        comments_part_.ensure_comment_ex.return_value = comment_ex_
+        comment_ex_.paraIdParent = None
+        timestamp = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone.utc)
+
+        comment.resolve(timestamp=timestamp)
+
+        comments_part_.ensure_comment_extensible.assert_called_once_with(
+            comment._comment_elm, timestamp
+        )
 
     def it_raises_when_attempting_to_resolve_a_reply(self, comments_part_: Mock):
         comment = Comment(

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import datetime as dt
 from io import BytesIO
+from zipfile import ZipFile
 
 import pytest
 
@@ -28,6 +30,35 @@ class DescribeCommentConvenience:
         assert len(document.comments) == 1
         assert comment.text == "Run note"
 
+    def it_can_add_a_comment_with_an_explicit_timestamp_from_a_paragraph(self):
+        document = Document()
+        paragraph = document.add_paragraph("Alpha")
+        timestamp = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+
+        comment = paragraph.add_comment("Note", author="TestAuthor", timestamp=timestamp)
+
+        assert comment.timestamp == dt.datetime(2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc)
+
+    def it_writes_word_style_timestamp_parts_for_timezone_aware_comments(self):
+        document = Document()
+        paragraph = document.add_paragraph("Alpha")
+        timestamp = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+
+        paragraph.add_comment("Note", author="TestAuthor", timestamp=timestamp)
+
+        stream = BytesIO()
+        document.save(stream)
+        stream.seek(0)
+
+        with ZipFile(stream) as pkg:
+            comments_xml = pkg.read("word/comments.xml").decode("utf-8")
+            comments_ids_xml = pkg.read("word/commentsIds.xml").decode("utf-8")
+            comments_extensible_xml = pkg.read("word/commentsExtensible.xml").decode("utf-8")
+
+        assert 'w:date="2025-06-11T20:42:30"' in comments_xml
+        assert "w16cid:commentId" in comments_ids_xml
+        assert 'w16cex:dateUtc="2025-06-11T12:42:30' in comments_extensible_xml
+
     def it_stamps_resolution_timestamp_when_comment_is_resolved(self):
         document = Document()
         run = document.add_paragraph("Alpha").runs[0]
@@ -40,6 +71,16 @@ class DescribeCommentConvenience:
 
         assert comment.resolved is True
         assert comment.resolved_at is not None
+
+    def it_can_stamp_an_explicit_resolution_timestamp(self):
+        document = Document()
+        run = document.add_paragraph("Alpha").runs[0]
+        comment = run.add_comment("Resolve me", author="TestAuthor")
+        timestamp = dt.datetime(2025, 6, 11, 20, 42, 30, tzinfo=dt.timezone(dt.timedelta(hours=8)))
+
+        comment.resolve(timestamp=timestamp)
+
+        assert comment.resolved_at == dt.datetime(2025, 6, 11, 12, 42, 30, tzinfo=dt.timezone.utc)
 
     def it_preserves_resolution_state_and_timestamp_on_save_and_reload(self):
         document = Document()

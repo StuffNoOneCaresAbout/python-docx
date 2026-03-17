@@ -64,9 +64,15 @@ an enterprise installation, based on the user account, but by default they are e
 
 *author* metadata is required, although silently assigned the empty string by Word if
 the user name is not configured. *initials* is optional, but always set by Word, to the
-empty string if not configured. *date* is also optional, but always set by Word to the
-UTC date and time the comment was added, with seconds resolution (no milliseconds or
-microseconds).
+empty string if not configured. *date* is also optional. In current Word builds, the
+authored local time is written in ``word/comments.xml`` and newer threaded-comment
+metadata can preserve the corresponding UTC instant separately.
+
+When creating a comment with *python-docx*, you can optionally provide a ``timestamp=``
+argument. A timezone-aware value is written in the same style as Word itself: the
+authored local time is written to ``word/comments.xml`` and the UTC instant is stored in
+``commentsExtensible.xml`` when that metadata is available. If you pass a naive
+``datetime``, it is written without a timezone suffix.
 
 **Additional Features.** Later versions of Word allow a top-level comment to be
 *resolved*. A comment in this state will appear grayed-out in the Word UI. Later
@@ -94,6 +100,7 @@ A simple example is adding a comment to a paragraph::
     ...    text="I have this to say about that"
     ...    author="Steve Canny",
     ...    initials="SC",
+    ...    timestamp=datetime.datetime.now(datetime.timezone.utc),
     ... )
     >>> comment
     <docx.comments.Comment object at 0x02468ACE>
@@ -230,6 +237,10 @@ property or the convenience methods ``resolve()`` and ``reopen()``::
 
 The ``resolved_at`` value records the UTC timestamp associated with the resolved-state
 metadata when that information is available in the document.
+
+You can also provide an explicit resolution timestamp using ``comment.resolve(timestamp=...)``.
+As with authored comment timestamps, timezone-aware values are normalized to UTC before
+being written.
 
 Reply comments do not support independent resolved-state operations. This matches Word's
 review UI, which treats resolution as a property of the thread root rather than each

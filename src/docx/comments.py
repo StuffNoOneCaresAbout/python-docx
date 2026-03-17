@@ -14,6 +14,15 @@ if TYPE_CHECKING:
     from docx.text.paragraph import Paragraph
 
 
+def _normalized_timestamp(value: dt.datetime | None) -> dt.datetime | None:
+    """Return `value` normalized for public API exposure."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(microsecond=0)
+    return value.astimezone(dt.timezone.utc).replace(microsecond=0)
+
+
 class Comments:
     """Collection containing the comments added to this document."""
 
@@ -36,8 +45,14 @@ class Comments:
         """The number of comments in this collection."""
         return len(self._comments_elm.comment_lst)
 
-    def add_comment(self, text: str = "", author: str = "", initials: str | None = "") -> Comment:
-        return self._add_comment(text=text, author=author, initials=initials)
+    def add_comment(
+        self,
+        text: str = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
+    ) -> Comment:
+        return self._add_comment(text=text, author=author, initials=initials, timestamp=timestamp)
 
     def _add_comment(
         self,
@@ -45,6 +60,7 @@ class Comments:
         author: str = "",
         initials: str | None = "",
         parent_para_id: str | None = None,
+        timestamp: dt.datetime | None = None,
     ) -> Comment:
         """Add a new comment to the document and return it.
 
@@ -70,8 +86,19 @@ class Comments:
         comment_elm, comment_ex_elm = self._comments_part.add_comment_elm(parent_para_id)
         comment_elm.author = author
         comment_elm.initials = initials
-        comment_elm.date = dt.datetime.now(dt.timezone.utc)
+        authored_timestamp = _normalized_timestamp(timestamp) if timestamp else None
+        if authored_timestamp is None:
+            authored_timestamp = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+
+        if timestamp is not None and timestamp.tzinfo is not None:
+            comment_elm.set_local_date(timestamp.replace(microsecond=0))
+            if parent_para_id is None:
+                self._comments_part.ensure_comment_extensible(comment_elm, authored_timestamp)
+        else:
+            comment_elm.date = authored_timestamp
+
         comment = Comment(comment_elm, self._comments_part, comment_ex_elm)
+        comment._authored_timestamp = _normalized_timestamp(authored_timestamp)
 
         if text == "":
             return comment
@@ -125,8 +152,15 @@ class Comment(BlockItemContainer):
         self._comment_elm = comment_elm
         self._comments_part = comments_part
         self._comment_ex_elm = comment_ex_elm
+        self._authored_timestamp = self._infer_authored_timestamp()
 
-    def add_reply(self, text: str = "", author: str = "", initials: str | None = "") -> Comment:
+    def add_reply(
+        self,
+        text: str = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
+    ) -> Comment:
         """Add a reply to this comment and return it."""
         parent_ex = self._comments_part.ensure_comment_ex(self._comment_elm)
         self._comments_part.ensure_comment_id(self._comment_elm)
@@ -137,11 +171,15 @@ class Comment(BlockItemContainer):
             author=author,
             initials=initials,
             parent_para_id=parent_ex.paraId,
+            timestamp=timestamp,
         )
         self._comments_part.anchor_comment_like(comment.comment_id, self.comment_id)
         self._comments_part.ensure_comment_id(comment._comment_elm)
-        self._comments_part.ensure_comment_extensible(comment._comment_elm, comment.timestamp)
+        self._comments_part.ensure_comment_extensible(
+            comment._comment_elm, timestamp or comment.timestamp
+        )
         self._comments_part.ensure_person(comment.author)
+        comment._authored_timestamp = comment._infer_authored_timestamp()
         return comment
 
     def add_paragraph(self, text: str = "", style: str | ParagraphStyle | None = None) -> Paragraph:
@@ -221,6 +259,9 @@ class Comment(BlockItemContainer):
 
     @resolved.setter
     def resolved(self, value: bool):
+        self._set_resolved(value)
+
+    def _set_resolved(self, value: bool, timestamp: dt.datetime | None = None) -> None:
         self._validate_resolution_supported()
         comment_ex = (
             self._comment_ex_elm
@@ -231,12 +272,12 @@ class Comment(BlockItemContainer):
         self._comment_ex_elm = comment_ex
         if value:
             self._comments_part.ensure_comment_extensible(
-                self._comment_elm, dt.datetime.now(dt.timezone.utc)
+                self._comment_elm, timestamp or dt.datetime.now(dt.timezone.utc)
             )
 
-    def resolve(self) -> None:
+    def resolve(self, timestamp: dt.datetime | None = None) -> None:
         """Mark this comment resolved and stamp a resolution timestamp."""
-        self.resolved = True
+        self._set_resolved(True, timestamp)
 
     def reopen(self) -> None:
         """Mark this comment unresolved."""
@@ -279,6 +320,17 @@ class Comment(BlockItemContainer):
 
         This attribute is optional in the XML, returns |None| if not set.
         """
+        return self._authored_timestamp
+
+    def _infer_authored_timestamp(self) -> dt.datetime | None:
+        comment_extensible = self._comment_extensible_elm
+        date_utc = getattr(comment_extensible, "dateUtc", None)
+        if isinstance(date_utc, dt.datetime):
+            if self.parent_para_id is not None:
+                return date_utc
+            if self._comment_ex_elm is None or not self._comment_ex_elm.done:
+                return date_utc
+
         return self._comment_elm.date
 
     def _validate_resolution_supported(self) -> None:

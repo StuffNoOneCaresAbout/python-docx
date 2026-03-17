@@ -331,11 +331,13 @@ class CommentsExtensiblePart(XmlPart):
         comment_extensible = self._comments_extensible.get_comment_extensible_by_durable_id(
             durable_id
         )
-        return (
-            comment_extensible
-            if comment_extensible is not None
-            else self.add_comment_extensible(durable_id, date_utc)
-        )
+        if comment_extensible is None:
+            return self.add_comment_extensible(durable_id, date_utc)
+
+        if date_utc is not None:
+            comment_extensible.dateUtc = date_utc.astimezone(dt.timezone.utc)
+
+        return comment_extensible
 
     @classmethod
     def _default_comments_extensible_xml(cls) -> bytes:
