@@ -417,6 +417,18 @@ class Describe_AsciiIfdEntry:
         val = _AsciiIfdEntry._parse_value(stream_rdr, None, 7, 0)
         assert val == "foobar"
 
+    @pytest.mark.parametrize("byte_order", [BIG_ENDIAN, LITTLE_ENDIAN])
+    def it_can_parse_an_inline_ascii_string_ifd_entry(self, byte_order):
+        bytes_ = {
+            BIG_ENDIAN: b"\x00\x01\x00\x02\x00\x00\x00\x048.3\x00",
+            LITTLE_ENDIAN: b"\x01\x00\x02\x00\x04\x00\x00\x008.3\x00",
+        }[byte_order]
+        stream_rdr = StreamReader(io.BytesIO(bytes_), byte_order)
+
+        ifd_entry = _AsciiIfdEntry.from_stream(stream_rdr, 0)
+
+        assert (ifd_entry.tag, ifd_entry.value) == (1, "8.3")
+
 
 class Describe_ShortIfdEntry:
     def it_can_parse_a_short_int_IFD_entry(self):

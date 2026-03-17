@@ -1,10 +1,12 @@
 """Unit test suite for docx.image.jpeg module"""
 
 import io
+import os
 
 import pytest
 
 from docx.image.constants import JPEG_MARKER_CODE, MIME_TYPE
+from docx.image.image import Image
 from docx.image.helpers import BIG_ENDIAN, StreamReader
 from docx.image.jpeg import (
     Exif,
@@ -21,6 +23,7 @@ from docx.image.jpeg import (
 )
 from docx.image.tiff import Tiff
 
+from ..unitutil.file import test_file_dir
 from ..unitutil.mock import (
     ANY,
     call,
@@ -29,6 +32,21 @@ from ..unitutil.mock import (
     instance_mock,
     method_mock,
 )
+
+
+class DescribeJpeg_integration:
+    """Integration tests using real image files."""
+
+    def it_can_parse_a_jpeg_with_inline_ascii_exif_values(self):
+        """Regression test for #184/#187 — iOS JPEGs whose EXIF Software field
+        is short enough (<=4 bytes) to be stored inline in the Value/Offset
+        slot rather than at a separate file offset.
+
+        Prior to the fix this raised UnexpectedEndOfFileError.
+        """
+        jpeg_path = os.path.join(test_file_dir, "ios-exif-inline-ascii.jpg")
+        image = Image.from_file(jpeg_path)
+        assert image.content_type == MIME_TYPE.JPEG
 
 
 class DescribeJpeg:
