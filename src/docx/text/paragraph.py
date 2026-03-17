@@ -187,7 +187,7 @@ class Paragraph(StoryChild):
         """The textual content of this paragraph.
 
         The text includes the visible-text portion of any hyperlinks in the paragraph.
-        Tabs and line breaks in the XML are mapped to ``\t`` and ``\n`` characters
+        Tabs and line breaks in the XML are mapped to ``\\t`` and ``\\n`` characters
         respectively. Deleted content in tracked revisions is included; inserted
         content is excluded.
 
