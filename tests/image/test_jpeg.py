@@ -6,8 +6,8 @@ import os
 import pytest
 
 from docx.image.constants import JPEG_MARKER_CODE, MIME_TYPE
-from docx.image.image import Image
 from docx.image.helpers import BIG_ENDIAN, StreamReader
+from docx.image.image import Image
 from docx.image.jpeg import (
     Exif,
     Jfif,
