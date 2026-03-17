@@ -54,6 +54,7 @@ PartFactory.part_type_for[CT.WML_COMMENTS_EXTENSIBLE] = CommentsExtensiblePart
 PartFactory.part_type_for[CT.WML_COMMENTS_IDS] = CommentsIdsPart
 PartFactory.part_type_for[CT.WML_PEOPLE] = PeoplePart
 PartFactory.part_type_for[CT.WML_DOCUMENT_MAIN] = DocumentPart
+PartFactory.part_type_for[CT.WML_DOCUMENT_MAIN_WITH_MACROS] = DocumentPart
 PartFactory.part_type_for[CT.WML_FOOTER] = FooterPart
 PartFactory.part_type_for[CT.WML_HEADER] = HeaderPart
 PartFactory.part_type_for[CT.WML_NUMBERING] = NumberingPart
