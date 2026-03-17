@@ -48,13 +48,13 @@ class Describe_WebpParser:
             assert parser.dimensions == expected_dimensions
 
     @pytest.mark.parametrize(
-        "blob",
+        ("blob", "match"),
         [
-            b"NOPE" + b"\x00" * 28,
-            b"RIFF\x00\x00\x00\x00NOPE" + b"\x00" * 16,
-            b"RIFF\x0e\x00\x00\x00WEBPZZZZ" + b"\x00" * 6,
+            (b"NOPE" + b"\x00" * 28, "Not a valid WebP file"),
+            (b"RIFF\x00\x00\x00\x00NOPE" + b"\x00" * 16, "Not a valid WebP file"),
+            (b"RIFF\x0e\x00\x00\x00WEBPZZZZ" + b"\x00" * 6, "Unsupported WebP format"),
         ],
     )
-    def it_raises_on_invalid_or_unsupported_webp_streams(self, blob):
-        with pytest.raises(ValueError):
+    def it_raises_on_invalid_or_unsupported_webp_streams(self, blob, match):
+        with pytest.raises(ValueError, match=match):
             _WebpParser.parse(io.BytesIO(blob)).dimensions
