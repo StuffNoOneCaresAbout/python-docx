@@ -11,6 +11,7 @@ from docx.image.image import BaseImageHeader, Image, _ImageHeaderFactory
 from docx.image.jpeg import Exif, Jfif
 from docx.image.png import Png
 from docx.image.tiff import Tiff
+from docx.image.webp import Webp
 from docx.opc.constants import CONTENT_TYPE as CT
 from docx.shared import Emu, Length
 
@@ -174,7 +175,7 @@ class DescribeImage:
             filename_out,
         )
 
-    @pytest.fixture(params=[0, 1, 2, 3, 4, 5, 6, 7, 8])
+    @pytest.fixture(params=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
     def known_image_fixture(self, request):
         cases = (
             ("python.bmp", ("bmp", CT.BMP, 211, 71, 96, 96)),
@@ -186,6 +187,7 @@ class DescribeImage:
             ("300-dpi.png", ("png", CT.PNG, 860, 579, 300, 300)),
             ("72-dpi.tiff", ("tiff", CT.TIFF, 48, 48, 72, 72)),
             ("300-dpi.TIF", ("tiff", CT.TIFF, 2464, 3248, 300, 300)),
+            ("python.webp", ("webp", CT.WEBP, 2, 3, 72, 72)),
             # ('CVS_LOGO.WMF',     ('wmf',  CT.X_WMF, 149,   59,  72,  72)),
         )
         image_filename, characteristics = cases[request.param]
@@ -284,6 +286,7 @@ class Describe_ImageHeaderFactory:
             ("72-dpi.tiff", Tiff),
             ("little-endian.tif", Tiff),
             ("python.bmp", Bmp),
+            ("python.webp", Webp),
         ]
     )
     def call_fixture(self, request):

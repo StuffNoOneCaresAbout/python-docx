@@ -17,6 +17,7 @@ default_content_types = (
     ("rels", CT.OPC_RELATIONSHIPS),
     ("tif", CT.TIFF),
     ("tiff", CT.TIFF),
+    ("webp", CT.WEBP),
     ("wdp", CT.MS_PHOTO),
     ("wmf", CT.X_WMF),
     ("xlsx", CT.SML_SHEET),

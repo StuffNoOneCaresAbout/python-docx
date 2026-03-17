@@ -127,6 +127,7 @@ class CONTENT_TYPE:
     )
     SML_WORKSHEET = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
     TIFF = "image/tiff"
+    WEBP = "image/webp"
     WML_COMMENTS = "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
     WML_COMMENTS_EXTENDED = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"
