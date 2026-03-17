@@ -97,6 +97,67 @@ class DescribeRevisions:
         assert paragraph.accepted_text == "AlXYa"
         assert len(document.track_changes) == 2
 
+    def it_finds_matches_inside_existing_insertions(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello ")
+        paragraph.add_tracked_insertion("World", author="TestAuthor")
+
+        count = paragraph.replace_tracked("World", "Universe", author="TestAuthor")
+
+        assert count == 1
+        assert paragraph.accepted_text == "Hello Universe"
+        assert [insertion.text for insertion in paragraph.insertions] == ["Universe"]
+        assert len(paragraph.deletions) == 0
+
+    def it_ignores_matches_that_exist_only_in_deleted_text(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+        paragraph.add_tracked_deletion(0, 5, author="TestAuthor")
+
+        count = paragraph.replace_tracked("Hello", "Hi", author="TestAuthor")
+
+        assert count == 0
+        assert paragraph.accepted_text == " World"
+        assert paragraph.text == "Hello World"
+
+    def it_replaces_text_spanning_multiple_runs(self):
+        document = Document()
+        paragraph = document.add_paragraph("")
+        paragraph.add_run("ACME Corp")
+        paragraph.add_run(" Ltd.")
+
+        count = paragraph.replace_tracked("ACME Corp Ltd.", "ACME Inc Ltd.", author="TestAuthor")
+
+        assert count == 1
+        assert any(deletion.text == "ACME Corp Ltd." for deletion in paragraph.deletions)
+        assert any(insertion.text == "ACME Inc Ltd." for insertion in paragraph.insertions)
+
+    def it_preserves_surrounding_text_for_cross_run_replacement(self):
+        document = Document()
+        paragraph = document.add_paragraph("")
+        paragraph.add_run("amount of 26.000")
+        paragraph.add_run(" Euros (TWENTY")
+
+        count = paragraph.replace_tracked("26.000 Euros", "30.000 Euros", author="TestAuthor")
+
+        assert count == 1
+        assert any(deletion.text == "26.000 Euros" for deletion in paragraph.deletions)
+        assert any(insertion.text == "30.000 Euros" for insertion in paragraph.insertions)
+        assert "amount of" in paragraph.accepted_text
+        assert "(TWENTY" in paragraph.accepted_text
+
+    def it_returns_track_changes_in_document_order(self):
+        document = Document()
+        paragraph = document.add_paragraph("colour")
+        paragraph.add_tracked_deletion(0, 6, author="Editor")
+        paragraph.add_tracked_insertion("color", author="Editor")
+
+        changes = paragraph.track_changes
+
+        assert len(changes) == 2
+        assert isinstance(changes[0], TrackedDeletion)
+        assert isinstance(changes[1], TrackedInsertion)
+
     def it_can_reject_all_tracked_changes_in_the_document(self):
         document = Document()
         first = document.add_paragraph("Alpha")
@@ -111,6 +172,78 @@ class DescribeRevisions:
         assert first.accepted_text == "Alpha"
         assert second.text == "Gamma"
         assert second.accepted_text == "Gamma"
+
+    def it_replaces_at_offsets_using_accepted_text_when_deletions_are_present(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+        paragraph.add_tracked_deletion(0, 5, author="TestAuthor", revision_id=1)
+
+        paragraph.replace_tracked_at(1, 6, "Universe", author="TestAuthor")
+
+        assert paragraph.accepted_text == " Universe"
+        assert [deletion.text for deletion in paragraph.deletions] == ["Hello", "World"]
+        assert any(insertion.text == "Universe" for insertion in paragraph.insertions)
+
+    def it_replaces_across_inserted_and_normal_visible_text(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello ")
+        paragraph.add_tracked_insertion("Brave ", author="TestAuthor", revision_id=1)
+        paragraph.add_run("World")
+
+        paragraph.replace_tracked_at(
+            6,
+            len(paragraph.accepted_text),
+            "Universe",
+            author="TestAuthor",
+        )
+
+        assert paragraph.accepted_text == "Hello Universe"
+        assert any(deletion.text == "World" for deletion in paragraph.deletions)
+        assert any(insertion.text == "Universe" for insertion in paragraph.insertions)
+
+    def it_can_replace_within_a_single_run_by_offset(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+
+        paragraph.replace_tracked_at(6, 11, "Universe", author="TestAuthor")
+
+        assert any(deletion.text == "World" for deletion in paragraph.deletions)
+        assert any(insertion.text == "Universe" for insertion in paragraph.insertions)
+
+    def it_can_replace_across_multiple_runs_by_offset(self):
+        document = Document()
+        paragraph = document.add_paragraph("")
+        paragraph.add_run("Hello ")
+        paragraph.add_run("World")
+
+        paragraph.replace_tracked_at(4, 9, "X", author="TestAuthor")
+
+        assert any(deletion.text == "o Wor" for deletion in paragraph.deletions)
+        assert any(insertion.text == "X" for insertion in paragraph.insertions)
+        assert "Hell" in paragraph.accepted_text
+        assert "ld" in paragraph.accepted_text
+
+    def it_can_replace_text_in_a_run_by_offset(self):
+        document = Document()
+        run = document.add_paragraph("Hello World").runs[0]
+
+        run.replace_tracked_at(6, 11, "Universe", author="TestAuthor")
+
+        paragraph = document.paragraphs[0]
+        assert any(deletion.text == "World" for deletion in paragraph.deletions)
+        assert any(insertion.text == "Universe" for insertion in paragraph.insertions)
+
+    def it_removes_inserted_text_when_a_deletion_targets_only_that_visible_span(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello ")
+        paragraph.add_tracked_insertion("World", author="TestAuthor", revision_id=1)
+
+        tracked = paragraph.add_tracked_deletion(6, 11, author="TestAuthor")
+
+        assert tracked is None
+        assert paragraph.accepted_text == "Hello "
+        assert paragraph.text == "Hello "
+        assert len(paragraph.insertions) == 0
 
     def it_ignores_comment_markers_when_computing_paragraph_text_views(self):
         document = Document()
