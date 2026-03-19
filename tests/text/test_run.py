@@ -14,6 +14,7 @@ from docx.enum.text import WD_BREAK, WD_UNDERLINE
 from docx.oxml.text.paragraph import CT_P
 from docx.oxml.text.run import CT_R
 from docx.parts.document import DocumentPart
+from docx.revisions import TrackedReplacement
 from docx.shape import InlineShape
 from docx.text.font import Font
 from docx.text.paragraph import Paragraph
@@ -372,6 +373,16 @@ class DescribeRun:
         run.text = new_text
 
         assert run._r.xml == xml(expected_cxml)
+
+    def it_can_replace_text_with_tracking_and_return_created_changes(self, paragraph_: Mock):
+        paragraph = cast(CT_P, element('w:p/w:r/w:t"Alpha"'))
+        run = Run(paragraph.r_lst[0], paragraph_)
+
+        replacement = run.replace_tracked_at(1, 3, "XX", author="Editor")
+
+        assert isinstance(replacement, TrackedReplacement)
+        assert replacement.deletion is not None
+        assert replacement.insertion is not None
 
     # -- fixtures --------------------------------------------------------------------------------
 

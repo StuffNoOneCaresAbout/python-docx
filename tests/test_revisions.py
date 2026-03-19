@@ -7,7 +7,7 @@ import pytest
 from docx import Document
 from docx.oxml.ns import qn
 from docx.oxml.parser import OxmlElement
-from docx.revisions import TrackedDeletion, TrackedInsertion
+from docx.revisions import TrackedDeletion, TrackedInsertion, TrackedReplacement
 
 
 def _revision_attrs(revision_id: int = 1, author: str = "TestAuthor") -> dict[str, str]:
@@ -346,8 +346,11 @@ class DescribeRevisions:
         paragraph = document.add_paragraph("Hello World")
         paragraph.add_tracked_deletion(0, 5, author="TestAuthor", revision_id=1)
 
-        paragraph.replace_tracked_at(1, 6, "Universe", author="TestAuthor")
+        replacement = paragraph.replace_tracked_at(1, 6, "Universe", author="TestAuthor")
 
+        assert isinstance(replacement, TrackedReplacement)
+        assert replacement.deletion is not None
+        assert replacement.insertion is not None
         assert paragraph.accepted_text == " Universe"
         assert [deletion.text for deletion in paragraph.deletions] == ["Hello", "World"]
         assert any(insertion.text == "Universe" for insertion in paragraph.insertions)
@@ -395,11 +398,41 @@ class DescribeRevisions:
         document = Document()
         run = document.add_paragraph("Hello World").runs[0]
 
-        run.replace_tracked_at(6, 11, "Universe", author="TestAuthor")
+        replacement = run.replace_tracked_at(6, 11, "Universe", author="TestAuthor")
 
         paragraph = document.paragraphs[0]
+        assert isinstance(replacement, TrackedReplacement)
+        assert replacement.deletion is not None
+        assert replacement.insertion is not None
         assert any(deletion.text == "World" for deletion in paragraph.deletions)
         assert any(insertion.text == "Universe" for insertion in paragraph.insertions)
+
+    def it_can_add_comments_to_both_sides_of_a_single_tracked_replacement(self):
+        document = Document()
+        paragraph = document.add_paragraph("Hello World")
+
+        replacement = paragraph.replace_tracked_at(6, 11, "Universe", author="Editor")
+        comments = replacement.add_comments("Review this change", author="Reviewer")
+
+        assert [comment.text for comment in comments] == ["Review this change"]
+        children = list(paragraph._p)
+        assert [child.tag for child in children] == [
+            qn("w:r"),
+            qn("w:commentRangeStart"),
+            qn("w:del"),
+            qn("w:ins"),
+            qn("w:commentRangeEnd"),
+            qn("w:r"),
+        ]
+
+    def it_keeps_document_find_and_replace_tracked_count_based(self):
+        document = Document()
+        document.add_paragraph("Alpha")
+
+        count = document.find_and_replace_tracked("Alpha", "Omega", author="Editor")
+
+        assert count == 1
+        assert isinstance(count, int)
 
     def it_removes_inserted_text_when_a_deletion_targets_only_that_visible_span(self):
         document = Document()

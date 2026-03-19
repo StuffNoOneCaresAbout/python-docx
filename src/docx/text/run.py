@@ -10,7 +10,12 @@ from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_BREAK
 from docx.oxml.drawing import CT_Drawing
 from docx.oxml.text.pagebreak import CT_LastRenderedPageBreak
-from docx.revisions import TrackedDeletion, run_delete_tracked, run_replace_tracked_at
+from docx.revisions import (
+    TrackedDeletion,
+    TrackedReplacement,
+    run_delete_tracked,
+    run_replace_tracked_at,
+)
 from docx.shape import InlineShape
 from docx.shared import StoryChild
 from docx.styles.style import CharacterStyle
@@ -273,9 +278,11 @@ class Run(StoryChild):
         """Mark this run as deleted using tracked changes."""
         return run_delete_tracked(self, author=author, revision_id=revision_id)
 
-    def replace_tracked_at(self, start: int, end: int, replace_text: str, author: str = "") -> None:
+    def replace_tracked_at(
+        self, start: int, end: int, replace_text: str, author: str = ""
+    ) -> TrackedReplacement:
         """Replace text at character offsets using tracked changes."""
-        run_replace_tracked_at(self, start, end, replace_text, author=author)
+        return run_replace_tracked_at(self, start, end, replace_text, author=author)
 
 
 class _Text:

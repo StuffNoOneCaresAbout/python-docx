@@ -6,7 +6,7 @@ import contextlib
 import datetime as dt
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Iterator, List
+from typing import TYPE_CHECKING, Iterator, List, Literal
 
 from docx.oxml.ns import qn
 from docx.oxml.parser import OxmlElement
@@ -146,12 +146,14 @@ class TrackedChange(Parented):
             comment_kwargs["timestamp"] = timestamp
 
         if self.is_run_level:
-            comment = self.part.comments.add_comment(**comment_kwargs)
+            comments = getattr(self.part, "comments")
+            comment = comments.add_comment(**comment_kwargs)
             self._insert_comment_range_around_revision(comment.comment_id)
             return comment
 
         first_run, last_run = self._comment_anchor_runs()
-        comment = self.part.comments.add_comment(**comment_kwargs)
+        comments = getattr(self.part, "comments")
+        comment = comments.add_comment(**comment_kwargs)
         first_run.mark_comment_range(last_run, comment.comment_id)
         return comment
 
@@ -326,6 +328,153 @@ class TrackedDeletion(TrackedChange):
         for child in reversed(list(self._element)):
             parent.insert(index, child)
         parent.remove(self._element)
+
+
+@dataclass(frozen=True)
+class TrackedReplacement:
+    """Created tracked changes for a single replacement operation."""
+
+    deletion: TrackedDeletion | None
+    insertion: TrackedInsertion | None
+
+    @property
+    def track_changes(self) -> list[TrackedChange]:
+        """Tracked changes created by this replacement, in document order."""
+        changes: list[TrackedChange] = []
+        if self.deletion is not None:
+            changes.append(self.deletion)
+        if self.insertion is not None:
+            changes.append(self.insertion)
+        return changes
+
+    def add_comments(
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
+        target: Literal["both", "deletion", "insertion"] = "both",
+    ) -> list[Comment]:
+        """Add comment(s) to the tracked changes in this replacement.
+
+        `target` controls whether comments are added to the deletion, the insertion,
+        or both. When `target` is `"both"` and both tracked changes are present,
+        a single comment is anchored across the entire replacement range from the
+        start of the deletion through the end of the insertion, matching the Word UI.
+        Missing tracked changes are skipped, so for example a replacement over text
+        that is already an insertion can still comment only the new insertion without
+        error.
+        """
+        if target not in {"both", "deletion", "insertion"}:
+            raise ValueError("target must be 'both', 'deletion', or 'insertion'")
+
+        if target == "both":
+            comment = self._add_comment_across_replacement(
+                text=text,
+                author=author,
+                initials=initials,
+                timestamp=timestamp,
+            )
+            return [comment] if comment is not None else []
+
+        changes_by_target = {
+            "deletion": [self.deletion],
+            "insertion": [self.insertion],
+        }
+        changes = changes_by_target[target]
+
+        comments: list[Comment] = []
+        for change in changes:
+            if change is None:
+                continue
+            comments.append(
+                change.add_comment(
+                    text=text,
+                    author=author,
+                    initials=initials,
+                    timestamp=timestamp,
+                )
+            )
+        return comments
+
+    def _add_comment_across_replacement(
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
+    ) -> Comment | None:
+        first_change = self.deletion or self.insertion
+        last_change = self.insertion or self.deletion
+        if first_change is None or last_change is None:
+            return None
+
+        if first_change is last_change:
+            return first_change.add_comment(
+                text=text,
+                author=author,
+                initials=initials,
+                timestamp=timestamp,
+            )
+
+        if not first_change.is_run_level or not last_change.is_run_level:
+            comments: list[Comment] = []
+            for change in (self.deletion, self.insertion):
+                if change is None:
+                    continue
+                comments.append(
+                    change.add_comment(
+                        text=text,
+                        author=author,
+                        initials=initials,
+                        timestamp=timestamp,
+                    )
+                )
+            return comments[0] if comments else None
+
+        parent = first_change._element.getparent()
+        if parent is None or parent is not last_change._element.getparent():
+            comments: list[Comment] = []
+            for change in (self.deletion, self.insertion):
+                if change is None:
+                    continue
+                comments.append(
+                    change.add_comment(
+                        text=text,
+                        author=author,
+                        initials=initials,
+                        timestamp=timestamp,
+                    )
+                )
+            return comments[0] if comments else None
+
+        comment_kwargs: dict[str, str | dt.datetime | None] = {
+            "text": text or "",
+            "author": author,
+            "initials": initials,
+        }
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
+        comments = getattr(first_change.part, "comments")
+        comment = comments.add_comment(**comment_kwargs)
+
+        start_idx = list(parent).index(first_change._element)
+        parent.insert(
+            start_idx,
+            OxmlElement("w:commentRangeStart", attrs={qn("w:id"): str(comment.comment_id)}),
+        )
+
+        end_idx = list(parent).index(last_change._element) + 1
+        while end_idx < len(parent) and _is_comment_range_trailer(parent[end_idx]):
+            end_idx += 1
+
+        parent.insert(
+            end_idx,
+            OxmlElement("w:commentRangeEnd", attrs={qn("w:id"): str(comment.comment_id)}),
+        )
+        parent.insert(end_idx + 1, make_comment_reference_run(comment.comment_id))
+        return comment
 
 
 def paragraph_has_track_changes(paragraph) -> bool:
@@ -707,7 +856,7 @@ def _edit_accepted_range(
     author: str,
     replace_text: str | None,
     revision_id: int | None = None,
-) -> TrackedDeletion | None:
+) -> TrackedReplacement:
     accepted_text = paragraph.accepted_text
     if start < 0 or end > len(accepted_text) or start >= end:
         raise ValueError(
@@ -770,15 +919,17 @@ def _edit_accepted_range(
         insert_idx += 1
         tracked_deletion = TrackedDeletion(del_elem, paragraph)  # pyright: ignore[reportArgumentType]
 
+    tracked_insertion: TrackedInsertion | None = None
     if replace_text:
         ins_elem = make_ins_element(replace_text, author, next_revision_id(paragraph._p), now)
         parent.insert(insert_idx, ins_elem)
         insert_idx += 1
+        tracked_insertion = TrackedInsertion(ins_elem, paragraph)  # pyright: ignore[reportArgumentType]
 
     if after_text:
         parent.insert(insert_idx, _make_visible_fragment(last_span, after_text))
 
-    return tracked_deletion
+    return TrackedReplacement(tracked_deletion, tracked_insertion)
 
 
 def paragraph_add_tracked_deletion(
@@ -795,13 +946,13 @@ def paragraph_add_tracked_deletion(
         author=author,
         replace_text=None,
         revision_id=revision_id,
-    )
+    ).deletion
 
 
 def paragraph_replace_tracked_at(
     paragraph, start: int, end: int, replace_text: str, author: str = ""
-) -> None:
-    _edit_accepted_range(paragraph, start, end, author=author, replace_text=replace_text)
+) -> TrackedReplacement:
+    return _edit_accepted_range(paragraph, start, end, author=author, replace_text=replace_text)
 
 
 def paragraph_replace_tracked(
@@ -850,7 +1001,9 @@ def run_delete_tracked(run, author: str = "", revision_id: int | None = None) ->
     return TrackedDeletion(del_elem, run._parent)  # pyright: ignore[reportArgumentType]
 
 
-def run_replace_tracked_at(run, start: int, end: int, replace_text: str, author: str = "") -> None:
+def run_replace_tracked_at(
+    run, start: int, end: int, replace_text: str, author: str = ""
+) -> TrackedReplacement:
     text = run.text
     if start < 0 or end > len(text) or start >= end:
         raise ValueError(
@@ -869,18 +1022,25 @@ def run_replace_tracked_at(run, start: int, end: int, replace_text: str, author:
     if before_text:
         parent.insert(insert_idx, make_text_run(before_text))
         insert_idx += 1
-    parent.insert(insert_idx, make_del_element(deleted_text, author, next_revision_id(run._r), now))
+    del_elem = make_del_element(deleted_text, author, next_revision_id(run._r), now)
+    parent.insert(insert_idx, del_elem)
     insert_idx += 1
-    parent.insert(insert_idx, make_ins_element(replace_text, author, next_revision_id(run._r), now))
+    ins_elem = make_ins_element(replace_text, author, next_revision_id(run._r), now)
+    parent.insert(insert_idx, ins_elem)
     insert_idx += 1
     if after_text:
         parent.insert(insert_idx, make_text_run(after_text))
+    return TrackedReplacement(
+        TrackedDeletion(del_elem, run._parent),  # pyright: ignore[reportArgumentType]
+        TrackedInsertion(ins_elem, run._parent),  # pyright: ignore[reportArgumentType]
+    )
 
 
 __all__ = [
     "TrackedChange",
     "TrackedDeletion",
     "TrackedInsertion",
+    "TrackedReplacement",
     "next_revision_id",
     "paragraph_accepted_text",
     "paragraph_add_tracked_deletion",

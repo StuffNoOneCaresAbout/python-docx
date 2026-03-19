@@ -13,6 +13,7 @@ from docx.parts.document import DocumentPart
 from docx.text.paragraph import Paragraph
 from docx.text.parfmt import ParagraphFormat
 from docx.text.run import Run
+from docx.revisions import TrackedReplacement
 
 from ..unitutil.cxml import element, xml
 from ..unitutil.mock import call, class_mock, instance_mock, method_mock, property_mock
@@ -200,6 +201,15 @@ class DescribeParagraph:
         _paragraph = paragraph.clear()
         assert paragraph._p.xml == expected_xml
         assert _paragraph is paragraph
+
+    def it_can_delegate_replace_tracked_at(self, fake_parent: t.ProvidesStoryPart):
+        paragraph = Paragraph(element('w:p/w:r/w:t"Alpha"'), fake_parent)
+
+        replacement = paragraph.replace_tracked_at(1, 3, "XX", author="Editor")
+
+        assert isinstance(replacement, TrackedReplacement)
+        assert replacement.deletion is not None
+        assert replacement.insertion is not None
 
     def it_inserts_a_paragraph_before_to_help(self, _insert_before_fixture):
         paragraph, body, expected_xml = _insert_before_fixture

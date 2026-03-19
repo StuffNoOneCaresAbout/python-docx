@@ -10,6 +10,7 @@ from docx.revisions import (
     TrackedChange,
     TrackedDeletion,
     TrackedInsertion,
+    TrackedReplacement,
     paragraph_accepted_text,
     paragraph_add_tracked_deletion,
     paragraph_add_tracked_insertion,
@@ -298,9 +299,16 @@ class Paragraph(StoryChild):
         """Replace all accepted-view occurrences using tracked deletion + insertion."""
         return paragraph_replace_tracked(self, search_text, replace_text, author=author)
 
-    def replace_tracked_at(self, start: int, end: int, replace_text: str, author: str = "") -> None:
-        """Replace accepted-view text at offsets using tracked deletion + insertion."""
-        paragraph_replace_tracked_at(self, start, end, replace_text, author=author)
+    def replace_tracked_at(
+        self, start: int, end: int, replace_text: str, author: str = ""
+    ) -> TrackedReplacement:
+        """Replace accepted-view text at offsets using tracked deletion + insertion.
+
+        Returns a |TrackedReplacement| containing the tracked deletion and insertion
+        created for this single replacement, allowing comments or other follow-up
+        operations to be applied immediately.
+        """
+        return paragraph_replace_tracked_at(self, start, end, replace_text, author=author)
 
     def add_comment(
         self,
@@ -311,7 +319,11 @@ class Paragraph(StoryChild):
     ):
         """Add a comment spanning all runs in this paragraph."""
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
-        comment_kwargs = {"text": text, "author": author, "initials": initials}
+        comment_kwargs: dict[str, str | dt.datetime | None] = {
+            "text": text,
+            "author": author,
+            "initials": initials,
+        }
         if timestamp is not None:
             comment_kwargs["timestamp"] = timestamp
         if not self.runs:
@@ -335,7 +347,11 @@ class Paragraph(StoryChild):
         """
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
         first_run, last_run = paragraph_comment_range_runs(self, start, end)
-        comment_kwargs = {"text": text, "author": author, "initials": initials}
+        comment_kwargs: dict[str, str | dt.datetime | None] = {
+            "text": text,
+            "author": author,
+            "initials": initials,
+        }
         if timestamp is not None:
             comment_kwargs["timestamp"] = timestamp
         return document.add_comment([first_run, last_run], **comment_kwargs)
