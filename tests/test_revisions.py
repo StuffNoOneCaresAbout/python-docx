@@ -161,9 +161,10 @@ class DescribeRevisions:
         paragraph = document.add_paragraph("Hello ")
         paragraph.add_tracked_insertion("World", author="TestAuthor")
 
-        count = paragraph.replace_tracked("World", "Universe", author="TestAuthor")
+        replacements = paragraph.replace_tracked("World", "Universe", author="TestAuthor")
 
-        assert count == 1
+        assert len(replacements) == 1
+        assert all(isinstance(replacement, TrackedReplacement) for replacement in replacements)
         assert paragraph.accepted_text == "Hello Universe"
         assert [insertion.text for insertion in paragraph.insertions] == ["Universe"]
         assert len(paragraph.deletions) == 0
@@ -173,9 +174,9 @@ class DescribeRevisions:
         paragraph = document.add_paragraph("Hello World")
         paragraph.add_tracked_deletion(0, 5, author="TestAuthor")
 
-        count = paragraph.replace_tracked("Hello", "Hi", author="TestAuthor")
+        replacements = paragraph.replace_tracked("Hello", "Hi", author="TestAuthor")
 
-        assert count == 0
+        assert replacements == []
         assert paragraph.accepted_text == " World"
         assert paragraph.text == "Hello World"
 
@@ -185,9 +186,11 @@ class DescribeRevisions:
         paragraph.add_run("ACME Corp")
         paragraph.add_run(" Ltd.")
 
-        count = paragraph.replace_tracked("ACME Corp Ltd.", "ACME Inc Ltd.", author="TestAuthor")
+        replacements = paragraph.replace_tracked(
+            "ACME Corp Ltd.", "ACME Inc Ltd.", author="TestAuthor"
+        )
 
-        assert count == 1
+        assert len(replacements) == 1
         assert any(deletion.text == "ACME Corp Ltd." for deletion in paragraph.deletions)
         assert any(insertion.text == "ACME Inc Ltd." for insertion in paragraph.insertions)
 
@@ -197,13 +200,37 @@ class DescribeRevisions:
         paragraph.add_run("amount of 26.000")
         paragraph.add_run(" Euros (TWENTY")
 
-        count = paragraph.replace_tracked("26.000 Euros", "30.000 Euros", author="TestAuthor")
+        replacements = paragraph.replace_tracked(
+            "26.000 Euros", "30.000 Euros", author="TestAuthor"
+        )
 
-        assert count == 1
+        assert len(replacements) == 1
         assert any(deletion.text == "26.000 Euros" for deletion in paragraph.deletions)
         assert any(insertion.text == "30.000 Euros" for insertion in paragraph.insertions)
         assert "amount of" in paragraph.accepted_text
         assert "(TWENTY" in paragraph.accepted_text
+
+    def it_returns_bulk_replacements_in_document_order(self):
+        document = Document()
+        paragraph = document.add_paragraph("Alpha Beta Alpha")
+
+        replacements = paragraph.replace_tracked("Alpha", "Omega", author="TestAuthor")
+
+        assert len(replacements) == 2
+        assert [
+            replacement.deletion.text if replacement.deletion else None
+            for replacement in replacements
+        ] == [
+            "Alpha",
+            "Alpha",
+        ]
+        assert [
+            replacement.insertion.text if replacement.insertion else None
+            for replacement in replacements
+        ] == [
+            "Omega",
+            "Omega",
+        ]
 
     def it_returns_track_changes_in_document_order(self):
         document = Document()

@@ -247,12 +247,12 @@ class Document(ElementProxy):
         """
         total_count = 0
         for paragraph in _iter_paragraphs_in_container(self._body):
-            total_count += paragraph.replace_tracked(search_text, replace_text, author=author)
+            total_count += len(paragraph.replace_tracked(search_text, replace_text, author=author))
         if include_headers_footers:
             for header_footer in _iter_defined_header_footer_containers(self):
                 for paragraph in _iter_paragraphs_in_container(header_footer):
-                    total_count += paragraph.replace_tracked(
-                        search_text, replace_text, author=author
+                    total_count += len(
+                        paragraph.replace_tracked(search_text, replace_text, author=author)
                     )
         return total_count
 

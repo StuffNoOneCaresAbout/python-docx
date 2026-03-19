@@ -295,8 +295,13 @@ class Paragraph(StoryChild):
             self, start, end, author=author, revision_id=revision_id
         )
 
-    def replace_tracked(self, search_text: str, replace_text: str, author: str = "") -> int:
-        """Replace all accepted-view occurrences using tracked deletion + insertion."""
+    def replace_tracked(
+        self, search_text: str, replace_text: str, author: str = ""
+    ) -> List[TrackedReplacement]:
+        """Replace all accepted-view occurrences using tracked deletion + insertion.
+
+        Returns the created replacements in document order.
+        """
         return paragraph_replace_tracked(self, search_text, replace_text, author=author)
 
     def replace_tracked_at(
@@ -319,17 +324,30 @@ class Paragraph(StoryChild):
     ):
         """Add a comment spanning all runs in this paragraph."""
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
-        comment_kwargs: dict[str, str | dt.datetime | None] = {
-            "text": text,
-            "author": author,
-            "initials": initials,
-        }
-        if timestamp is not None:
-            comment_kwargs["timestamp"] = timestamp
         if not self.runs:
             run = self.add_run()
-            return document.add_comment(run, **comment_kwargs)
-        return document.add_comment(self.runs, **comment_kwargs)
+            return (
+                document.add_comment(run, text=text, author=author, initials=initials)
+                if timestamp is None
+                else document.add_comment(
+                    run,
+                    text=text,
+                    author=author,
+                    initials=initials,
+                    timestamp=timestamp,
+                )
+            )
+        return (
+            document.add_comment(self.runs, text=text, author=author, initials=initials)
+            if timestamp is None
+            else document.add_comment(
+                self.runs,
+                text=text,
+                author=author,
+                initials=initials,
+                timestamp=timestamp,
+            )
+        )
 
     def add_comment_range(
         self,
@@ -347,11 +365,14 @@ class Paragraph(StoryChild):
         """
         document = self.part._document_part.document  # pyright: ignore[reportPrivateUsage]
         first_run, last_run = paragraph_comment_range_runs(self, start, end)
-        comment_kwargs: dict[str, str | dt.datetime | None] = {
-            "text": text,
-            "author": author,
-            "initials": initials,
-        }
-        if timestamp is not None:
-            comment_kwargs["timestamp"] = timestamp
-        return document.add_comment([first_run, last_run], **comment_kwargs)
+        return (
+            document.add_comment([first_run, last_run], text=text, author=author, initials=initials)
+            if timestamp is None
+            else document.add_comment(
+                [first_run, last_run],
+                text=text,
+                author=author,
+                initials=initials,
+                timestamp=timestamp,
+            )
+        )

@@ -456,8 +456,8 @@ class TrackedReplacement:
         if timestamp is not None:
             comment_kwargs["timestamp"] = timestamp
 
-        comments = getattr(first_change.part, "comments")
-        comment = comments.add_comment(**comment_kwargs)
+        comments_collection = getattr(first_change.part, "comments")
+        comment = comments_collection.add_comment(**comment_kwargs)
 
         start_idx = list(parent).index(first_change._element)
         parent.insert(
@@ -957,8 +957,8 @@ def paragraph_replace_tracked_at(
 
 def paragraph_replace_tracked(
     paragraph, search_text: str, replace_text: str, author: str = ""
-) -> int:
-    count = 0
+) -> list[TrackedReplacement]:
+    replacements: list[TrackedReplacement] = []
     full_text = paragraph.accepted_text
     search_len = len(search_text)
     positions: list[int] = []
@@ -970,9 +970,12 @@ def paragraph_replace_tracked(
         positions.append(idx)
         start = idx + search_len
     for pos in reversed(positions):
-        paragraph_replace_tracked_at(paragraph, pos, pos + search_len, replace_text, author=author)
-        count += 1
-    return count
+        replacements.append(
+            paragraph_replace_tracked_at(
+                paragraph, pos, pos + search_len, replace_text, author=author
+            )
+        )
+    return list(reversed(replacements))
 
 
 def run_delete_tracked(run, author: str = "", revision_id: int | None = None) -> TrackedDeletion:
