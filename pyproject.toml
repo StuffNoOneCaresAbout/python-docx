@@ -36,7 +36,7 @@ test = [
     "pytest-xdist>=3.8.0",
 ]
 lint = ["ruff>=0.15.7"]
-typing = ["ty>=0.0.24", "types-lxml-multi-subclass>=2026.2.16"]
+typing = ["ty>=0.0.25", "types-lxml-multi-subclass>=2026.2.16"]
 publish = ["twine>=6.2.0"]
 dev = [
     { include-group = "docs" },
