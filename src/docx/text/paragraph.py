@@ -309,7 +309,7 @@ class Paragraph(StoryChild):
     ) -> TrackedReplacement:
         """Replace accepted-view text at offsets using tracked deletion + insertion.
 
-        Returns a |TrackedReplacement| containing the tracked deletion and insertion
+        Returns a :class:`.TrackedReplacement` containing the tracked deletion and insertion
         created for this single replacement, allowing comments or other follow-up
         operations to be applied immediately.
         """
