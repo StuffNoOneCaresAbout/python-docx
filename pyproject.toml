@@ -35,7 +35,7 @@ test = [
     "pytest-cov>=7.1.0",
     "pytest-xdist>=3.8.0",
 ]
-lint = ["ruff>=0.15.7"]
+lint = ["ruff>=0.15.8"]
 typing = ["ty>=0.0.26", "types-lxml-multi-subclass>=2026.2.16"]
 publish = ["twine>=6.2.0"]
 dev = [
