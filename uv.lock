@@ -743,7 +743,7 @@ typing = [
 
 [package.metadata]
 requires-dist = [
-    { name = "lxml", specifier = ">=6.0.3" },
+    { name = "lxml", specifier = ">=6.0.4" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
 ]
 
