@@ -113,6 +113,7 @@ class PNG_CHUNK_TYPE:
 
     IHDR = "IHDR"
     pHYs = "pHYs"
+    eXIf = "eXIf"
     IEND = "IEND"
 
 
@@ -142,6 +143,7 @@ class TIFF_TAG:
 
     IMAGE_WIDTH = 0x0100
     IMAGE_LENGTH = 0x0101
+    ORIENTATION = 0x0112
     X_RESOLUTION = 0x011A
     Y_RESOLUTION = 0x011B
     RESOLUTION_UNIT = 0x0128
