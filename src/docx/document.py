@@ -155,8 +155,8 @@ class Document(ElementProxy):
         the dots-per-inch (dpi) value specified in the image file, defaulting to 72 dpi
         if no value is specified, as is often the case.
 
-        `orientation` defaults to |AUTO|, which applies the Exif/TIFF Orientation
-        embedded in the image.
+        `orientation` defaults to `EXIF_ORIENTATION.AUTO`, which applies the
+        Exif/TIFF Orientation embedded in the image.
         """
         run = self.add_paragraph().add_run()
         return run.add_picture(image_path_or_stream, width, height, orientation)
