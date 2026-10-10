@@ -127,3 +127,42 @@ class DescribeInlineShape:
             "wp:inline/(wp:extent{cx=444,cy=888},a:graphic/a:graphicData/pic:pic/pic:spPr/"
             "a:xfrm/a:ext{cx=444,cy=888})"
         )
+
+    @pytest.mark.parametrize(
+        ("rot", "extent_init", "spPr_init", "set_width", "set_height", "expected_spPr"),
+        [
+            # no rotation: extent and spPr share axes
+            (0, (333, 666), (333, 666), 444, 888, (444, 888)),
+            # 180° rotation: axes not swapped
+            (10_800_000, (333, 666), (333, 666), 444, 888, (444, 888)),
+            # 90° rotation: extent (display) and spPr (native) axes are crossed,
+            # so a width request sets spPr.cy and a height request sets spPr.cx
+            (5_400_000, (666, 333), (333, 666), 444, 888, (888, 444)),
+            # 270° rotation: same crossing
+            (16_200_000, (666, 333), (333, 666), 444, 888, (888, 444)),
+        ],
+    )
+    def it_maps_explicit_dimensions_across_axes_when_rotated(
+        self, rot, extent_init, spPr_init, set_width, set_height, expected_spPr
+    ):
+        extent_cx, extent_cy = extent_init
+        spPr_cx, spPr_cy = spPr_init
+        rot_attr = "{rot=%d}" % rot if rot else ""
+        inline_shape = InlineShape(
+            cast(
+                CT_Inline,
+                element(
+                    "wp:inline/(wp:extent{cx=%d,cy=%d},a:graphic/a:graphicData/pic:pic/"
+                    "pic:spPr/a:xfrm%s/a:ext{cx=%d,cy=%d})"
+                    % (extent_cx, extent_cy, rot_attr, spPr_cx, spPr_cy)
+                ),
+            )
+        )
+
+        inline_shape.width = Emu(set_width)
+        inline_shape.height = Emu(set_height)
+
+        assert inline_shape.width == Emu(set_width)
+        assert inline_shape.height == Emu(set_height)
+        pic_xfrm = inline_shape._inline.graphic.graphicData.pic.spPr.xfrm
+        assert (pic_xfrm.cx, pic_xfrm.cy) == expected_spPr

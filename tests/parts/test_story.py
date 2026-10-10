@@ -2,6 +2,7 @@
 
 import pytest
 
+from docx.enum.shape import EXIF_ORIENTATION
 from docx.enum.style import WD_STYLE_TYPE
 from docx.image.image import Image
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
@@ -59,6 +60,7 @@ class DescribeStoryPart:
         get_or_add_image_.return_value = "rId42", image_
         image_.scaled_dimensions.return_value = 444, 888
         image_.filename = "bar.png"
+        image_.orientation = EXIF_ORIENTATION.NORMAL
         next_id_prop_.return_value = 24
         expected_xml = snippet_text("inline")
         story_part = StoryPart(None, None, None, None)
@@ -68,6 +70,64 @@ class DescribeStoryPart:
         get_or_add_image_.assert_called_once_with(story_part, "foo/bar.png")
         image_.scaled_dimensions.assert_called_once_with(100, 200)
         assert inline.xml == expected_xml
+
+    def it_resolves_auto_orientation_from_the_image_before_scaling(
+        self, get_or_add_image_, image_, next_id_prop_
+    ):
+        get_or_add_image_.return_value = "rId42", image_
+        image_.scaled_dimensions.return_value = 444, 888
+        image_.filename = "bar.png"
+        image_.orientation = EXIF_ORIENTATION.ROTATE_90
+        next_id_prop_.return_value = 24
+        story_part = StoryPart(None, None, None, None)
+
+        story_part.new_pic_inline("foo/bar.png", width=100, height=200)
+
+        # AUTO must resolve to ROTATE_90 before scaling so the request is cross-mapped
+        image_.scaled_dimensions.assert_called_once_with(200, 100)
+
+    @pytest.mark.parametrize(
+        ("orientation", "width", "height", "expected_scaled_args", "expected_extent"),
+        [
+            # axis-swapping orientations cross-map the display request onto the
+            # image's native axes before scaling
+            (EXIF_ORIENTATION.ROTATE_90, 100, None, (None, 100), (888, 444)),
+            (EXIF_ORIENTATION.ROTATE_90, None, 200, (200, None), (888, 444)),
+            (EXIF_ORIENTATION.ROTATE_90, 100, 200, (200, 100), (888, 444)),
+            (EXIF_ORIENTATION.ROTATE_270, 100, None, (None, 100), (888, 444)),
+            (EXIF_ORIENTATION.TRANSPOSE, None, 200, (200, None), (888, 444)),
+            (EXIF_ORIENTATION.TRANSVERSE, 100, 200, (200, 100), (888, 444)),
+            # non-swapping orientations pass the request through unchanged
+            (EXIF_ORIENTATION.NORMAL, 100, None, (100, None), (444, 888)),
+            (EXIF_ORIENTATION.NORMAL, None, 200, (None, 200), (444, 888)),
+            (EXIF_ORIENTATION.NORMAL, 100, 200, (100, 200), (444, 888)),
+            (EXIF_ORIENTATION.ROTATE_180, 100, 200, (100, 200), (444, 888)),
+        ],
+    )
+    def it_cross_maps_the_sizing_request_before_scaling(
+        self,
+        get_or_add_image_,
+        image_,
+        next_id_prop_,
+        orientation,
+        width,
+        height,
+        expected_scaled_args,
+        expected_extent,
+    ):
+        get_or_add_image_.return_value = "rId42", image_
+        image_.scaled_dimensions.return_value = 444, 888
+        image_.filename = "bar.png"
+        image_.orientation = orientation
+        next_id_prop_.return_value = 24
+        story_part = StoryPart(None, None, None, None)
+
+        inline = story_part.new_pic_inline("foo/bar.png", width=width, height=height)
+
+        image_.scaled_dimensions.assert_called_once_with(*expected_scaled_args)
+        # wp:extent is swapped exactly once for axis-swapping orientations, so the
+        # display size stays what the caller requested (no double swap)
+        assert (inline.extent.cx, inline.extent.cy) == expected_extent
 
     def it_knows_the_next_available_xml_id(self, next_id_fixture):
         story_element, expected_value = next_id_fixture
