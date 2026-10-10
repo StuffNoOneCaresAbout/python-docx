@@ -1,5 +1,3 @@
-.tox
-Session.vim
 build/
 docs/.build
 features/_scratch

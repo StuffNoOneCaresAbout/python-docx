@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import TYPE_CHECKING, Iterator, cast, overload
 
 from typing_extensions import TypeAlias
@@ -15,6 +16,7 @@ from docx.shared import Inches, Parented, StoryChild, lazyproperty
 
 if TYPE_CHECKING:
     import docx.types as t
+    from docx.comments import Comment
     from docx.enum.table import WD_ROW_HEIGHT_RULE, WD_TABLE_ALIGNMENT, WD_TABLE_DIRECTION
     from docx.oxml.table import CT_Row, CT_Tbl, CT_TblPr, CT_Tc
     from docx.shared import Length
@@ -22,6 +24,7 @@ if TYPE_CHECKING:
         ParagraphStyle,
         _TableStyle,  # pyright: ignore[reportPrivateUsage]
     )
+    from docx.text.run import Run
 
 TableParent: TypeAlias = "Table | _Columns | _Rows"
 
@@ -53,6 +56,26 @@ class Table(StoryChild):
             if gridCol.w is not None:
                 tc.width = gridCol.w
         return _Row(tr, self)
+
+    def add_comment(
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
+    ) -> Comment:
+        """Add a comment spanning this entire table."""
+        if self.part is not self.part._document_part:  # pyright: ignore[reportPrivateUsage]
+            raise ValueError("comments can only be added to tables in the main document story")
+
+        comment_kwargs = {"text": text or "", "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
+        comment = self.part.comments.add_comment(**comment_kwargs)
+        self._tbl.insert_comment_range_start_above(comment.comment_id)
+        self._tbl.insert_comment_range_end_and_reference_below(comment.comment_id)
+        return comment
 
     @property
     def alignment(self) -> WD_TABLE_ALIGNMENT | None:
@@ -225,6 +248,32 @@ class _Cell(BlockItemContainer):
         self.add_paragraph()
         return table
 
+    def add_comment(
+        self,
+        text: str | None = "",
+        author: str = "",
+        initials: str | None = "",
+        timestamp: dt.datetime | None = None,
+    ) -> Comment:
+        """Add a comment spanning the visible content boundaries of this cell.
+
+        The comment is anchored from the first run in the first paragraph of this cell
+        through the last run in the last paragraph of this cell. Empty anchor runs are
+        created as needed so an otherwise empty cell can still be commented.
+        """
+        if self.part is not self.part._document_part:  # pyright: ignore[reportPrivateUsage]
+            raise ValueError("comments can only be added to cells in the main document story")
+
+        comment_kwargs = {"text": text or "", "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
+        comment = self.part.comments.add_comment(**comment_kwargs)
+        self._first_comment_anchor_run.mark_comment_range(
+            self._last_comment_anchor_run, comment.comment_id
+        )
+        return comment
+
     @property
     def grid_span(self) -> int:
         """Number of layout-grid cells this cell spans horizontally.
@@ -309,6 +358,18 @@ class _Cell(BlockItemContainer):
     @width.setter
     def width(self, value: Length):
         self._tc.width = value
+
+    @property
+    def _first_comment_anchor_run(self) -> Run:
+        """First run in this cell used to anchor a comment start marker."""
+        first_p = self.paragraphs[0]
+        return first_p.runs[0] if first_p.runs else first_p.add_run()
+
+    @property
+    def _last_comment_anchor_run(self) -> Run:
+        """Last run in this cell used to anchor a comment end marker."""
+        last_p = self.paragraphs[-1]
+        return last_p.runs[-1] if last_p.runs else last_p.add_run()
 
 
 class _Column(Parented):

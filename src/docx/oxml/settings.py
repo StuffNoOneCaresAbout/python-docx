@@ -116,7 +116,7 @@ class CT_Settings(BaseOxmlElement):
         "w:decimalSymbol",
         "w:listSeparator",
     )
-    evenAndOddHeaders: CT_OnOff | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    evenAndOddHeaders: CT_OnOff | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "w:evenAndOddHeaders", successors=_tag_seq[48:]
     )
     del _tag_seq

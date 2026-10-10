@@ -5,12 +5,14 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from typing import IO, TYPE_CHECKING, Iterator, List, Sequence
 
 from docx.blkcntnr import BlockItemContainer
 from docx.enum.section import WD_SECTION
 from docx.enum.shape import EXIF_ORIENTATION
 from docx.enum.text import WD_BREAK
+from docx.revisions import TrackedChange
 from docx.section import Section, Sections
 from docx.shared import ElementProxy, Emu, Inches, Length
 from docx.text.run import Run
@@ -41,10 +43,11 @@ class Document(ElementProxy):
 
     def add_comment(
         self,
-        runs: Run | Sequence[Run],
+        runs: Run | Sequence[Run] | Table,
         text: str | None = "",
         author: str = "",
         initials: str | None = "",
+        timestamp: dt.datetime | None = None,
     ) -> Comment:
         """Add a comment to the document, anchored to the specified runs.
 
@@ -75,13 +78,29 @@ class Document(ElementProxy):
         `initials` attribute by default and we follow that convention by using the empty string
         when no `initials` argument is provided.
         """
+        from docx.table import Table
+
+        comment_kwargs = {"text": text, "author": author, "initials": initials}
+        if timestamp is not None:
+            comment_kwargs["timestamp"] = timestamp
+
+        if isinstance(runs, Table):
+            return runs.add_comment(**comment_kwargs)
+
         # -- normalize `runs` to a sequence of runs --
         runs = [runs] if isinstance(runs, Run) else runs
         first_run = runs[0]
         last_run = runs[-1]
 
+        if first_run.part is not self._part:
+            raise ValueError("comments can only be added to runs in the main document story")
+        if first_run.part is not last_run.part:
+            raise ValueError(
+                "first and last run for a comment must belong to the same document part"
+            )
+
         # -- Note that comments can only appear in the document part --
-        comment = self.comments.add_comment(text=text, author=author, initials=initials)
+        comment = self.comments.add_comment(**comment_kwargs)
 
         # -- let the first run orchestrate placement of the comment range start and end --
         first_run.mark_comment_range(last_run, comment.comment_id)
@@ -186,12 +205,68 @@ class Document(ElementProxy):
         """Generate each `Paragraph` or `Table` in this document in document order."""
         return self._body.iter_inner_content()
 
+    def iter_comments(self) -> Iterator[Comment]:
+        """Generate comments in this document in comment-id order."""
+        yield from self.comments
+
+    @property
+    def track_changes(self) -> List[TrackedChange]:
+        """Tracked insertions and deletions across all top-level paragraphs and cells."""
+        changes: List[TrackedChange] = []
+        for paragraph in self.paragraphs:
+            changes.extend(paragraph.track_changes)
+        for table in self.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        changes.extend(paragraph.track_changes)
+        return changes
+
+    def accept_all(self) -> None:
+        """Accept every tracked change in the main document story."""
+        for change in list(self.track_changes):
+            change.accept()
+
+    def reject_all(self) -> None:
+        """Reject every tracked change in the main document story."""
+        for change in list(self.track_changes):
+            change.reject()
+
+    def find_and_replace_tracked(
+        self,
+        search_text: str,
+        replace_text: str,
+        author: str = "",
+        *,
+        include_headers_footers: bool = False,
+    ) -> int:
+        """Find and replace in accepted-view text using tracked revisions.
+
+        Replacement always operates on `Paragraph.accepted_text`, meaning inserted
+        text is searchable and deleted text is ignored.
+
+        When `include_headers_footers` is |True|, existing header and footer story
+        parts are included in the traversal. Linked header/footer definitions are not
+        materialized merely to support this search; only already-defined parts are
+        traversed.
+        """
+        total_count = 0
+        for paragraph in _iter_paragraphs_in_container(self._body):
+            total_count += len(paragraph.replace_tracked(search_text, replace_text, author=author))
+        if include_headers_footers:
+            for header_footer in _iter_defined_header_footer_containers(self):
+                for paragraph in _iter_paragraphs_in_container(header_footer):
+                    total_count += len(
+                        paragraph.replace_tracked(search_text, replace_text, author=author)
+                    )
+        return total_count
+
     @property
     def paragraphs(self) -> List[Paragraph]:
         """The |Paragraph| instances in the document, in document order.
 
-        Note that paragraphs within revision marks such as ``<w:ins>`` or ``<w:del>`` do
-        not appear in this list.
+        Paragraphs wrapped in deletions are included. Paragraphs within insertions do not
+        appear in this list.
         """
         return self._body.paragraphs
 
@@ -229,8 +304,7 @@ class Document(ElementProxy):
 
         Note that only tables appearing at the top level of the document appear in this
         list; a table nested inside a table cell does not appear. A table within
-        revision marks such as ``<w:ins>`` or ``<w:del>`` will also not appear in the
-        list.
+        an insertion will also not appear in the list.
         """
         return self._body.tables
 
@@ -268,3 +342,43 @@ class _Body(BlockItemContainer):
         """
         self._body.clear_content()
         return self
+
+
+def _iter_paragraphs_in_container(container: BlockItemContainer) -> Iterator[Paragraph]:
+    """Generate paragraphs in `container`, recursing into nested tables."""
+    yield from container.paragraphs
+
+    for table in container.tables:
+        yield from _iter_paragraphs_in_table(table)
+
+
+def _iter_paragraphs_in_table(table: Table) -> Iterator[Paragraph]:
+    """Generate paragraphs in `table`, recursing into nested tables in cells."""
+    for row in table.rows:
+        for cell in row.cells:
+            yield from _iter_paragraphs_in_container(cell)
+
+
+def _iter_defined_header_footer_containers(document: Document) -> Iterator[BlockItemContainer]:
+    """Generate each existing header/footer container once, without creating parts."""
+    seen_partnames: set[str] = set()
+
+    for section in document.sections:
+        for header_footer in (
+            section.header,
+            section.first_page_header,
+            section.even_page_header,
+            section.footer,
+            section.first_page_footer,
+            section.even_page_footer,
+        ):
+            if not header_footer._has_definition:  # pyright: ignore[reportPrivateUsage]
+                continue
+
+            definition = header_footer._definition  # pyright: ignore[reportPrivateUsage]
+            partname = str(definition.partname)
+            if partname in seen_partnames:
+                continue
+
+            seen_partnames.add(partname)
+            yield header_footer

@@ -35,7 +35,7 @@ class CT_CoreProperties(BaseOxmlElement):
     lastModifiedBy = ZeroOrOne("cp:lastModifiedBy", successors=())
     lastPrinted = ZeroOrOne("cp:lastPrinted", successors=())
     modified = ZeroOrOne("dcterms:modified", successors=())
-    revision: etree_Element | None = ZeroOrOne(  # pyright: ignore[reportAssignmentType]
+    revision: etree_Element | None = ZeroOrOne(  # ty: ignore[invalid-assignment]
         "cp:revision", successors=()
     )
     subject = ZeroOrOne("dc:subject", successors=())
@@ -262,6 +262,8 @@ class CT_CoreProperties(BaseOxmlElement):
         if not isinstance(value, dt.datetime):  # pyright: ignore[reportUnnecessaryIsInstance]
             tmpl = "property requires <type 'datetime.datetime'> object, got %s"
             raise ValueError(tmpl % type(value))
+        if value.tzinfo is not None:
+            value = value.astimezone(dt.timezone.utc)
         element = self._get_or_add(prop_name)
         dt_str = value.strftime("%Y-%m-%dT%H:%M:%SZ")
         element.text = dt_str

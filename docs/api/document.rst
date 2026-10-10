@@ -34,8 +34,10 @@ revision, subject, title, and version.
 Each property is one of three types, |str|, |datetime|, or |int|. String
 properties are limited in length to 255 characters and return an empty string
 ('') if not set. Date properties are assigned and returned as |datetime|
-objects without timezone, i.e. in UTC. Any timezone conversions are the
-responsibility of the client. Date properties return |None| if not set.
+objects in UTC. When assigning a timezone-aware |datetime|, |docx| converts it
+to UTC before writing the package metadata. Naive |datetime| values are written
+as-is and so are interpreted as already being in UTC. Date properties return
+|None| if not set.
 
 |docx| does not automatically set any of the document core properties other
 than to add a core properties part to a presentation that doesn't have one

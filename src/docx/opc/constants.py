@@ -127,7 +127,18 @@ class CONTENT_TYPE:
     )
     SML_WORKSHEET = "application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"
     TIFF = "image/tiff"
+    WEBP = "image/webp"
     WML_COMMENTS = "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
+    WML_COMMENTS_EXTENDED = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"
+    )
+    WML_COMMENTS_EXTENSIBLE = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtensible+xml"
+    )
+    WML_COMMENTS_IDS = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsIds+xml"
+    )
+    WML_PEOPLE = "application/vnd.openxmlformats-officedocument.wordprocessingml.people+xml"
     WML_DOCUMENT = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     WML_DOCUMENT_GLOSSARY = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document.glossary+xml"
@@ -135,6 +146,7 @@ class CONTENT_TYPE:
     WML_DOCUMENT_MAIN = (
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
     )
+    WML_DOCUMENT_MAIN_WITH_MACROS = "application/vnd.ms-word.document.macroEnabled.main+xml"
     WML_ENDNOTES = "application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"
     WML_FONT_TABLE = "application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"
     WML_FOOTER = "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"
@@ -188,6 +200,12 @@ class RELATIONSHIP_TYPE:
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartUserShapes"
     )
     COMMENTS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+    COMMENTS_EXTENDED = "http://schemas.microsoft.com/office/2011/relationships/commentsExtended"
+    COMMENTS_EXTENSIBLE = (
+        "http://schemas.microsoft.com/office/2018/08/relationships/commentsExtensible"
+    )
+    COMMENTS_IDS = "http://schemas.microsoft.com/office/2016/09/relationships/commentsIds"
+    PEOPLE = "http://schemas.microsoft.com/office/2011/relationships/people"
     COMMENT_AUTHORS = (
         "http://schemas.openxmlformats.org/officeDocument/2006/relationships/commentAuthors"
     )

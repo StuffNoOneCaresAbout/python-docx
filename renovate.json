@@ -1,0 +1,51 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:recommended",
+        "group:recommended"
+    ],
+    "ignorePresets": [
+        ":prHourlyLimit2"
+    ],
+    "platformAutomerge": true,
+    "packageRules": [
+        {
+            "description": "Disable Python runtime/version bumps from .python-version and requires-python",
+            "matchPackageNames": [
+                "python"
+            ],
+            "matchDatasources": [
+                "docker",
+                "python-version"
+            ],
+            "enabled": false
+        },
+        {
+            "matchUpdateTypes": [
+                "minor",
+                "patch",
+                "pin",
+                "digest"
+            ],
+            "automerge": true
+        },
+        {
+            "matchPackageNames": [
+                "tokio"
+            ],
+            "matchUpdateTypes": [
+                "minor",
+                "patch",
+                "pin",
+                "digest"
+            ],
+            "enabled": false
+        }
+    ],
+    "lockFileMaintenance": {
+        "enabled": true,
+        "automerge": true
+    },
+    "rangeStrategy": "bump",
+    "forkProcessing": "enabled"
+}

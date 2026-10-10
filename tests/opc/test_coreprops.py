@@ -117,6 +117,43 @@ class DescribeCoreProperties:
         assert core_properties._element.xml == expected_xml
 
     @pytest.mark.parametrize(
+        ("prop_name", "tagname", "value", "str_val", "attrs"),
+        [
+            (
+                "created",
+                "dcterms:created",
+                dt.datetime(2001, 2, 3, 12, 5, tzinfo=dt.timezone(dt.timedelta(hours=8))),
+                "2001-02-03T04:05:00Z",
+                ' xsi:type="dcterms:W3CDTF"',
+            ),
+            (
+                "last_printed",
+                "cp:lastPrinted",
+                dt.datetime(2014, 6, 4, 4, tzinfo=dt.timezone(dt.timedelta(hours=-5))),
+                "2014-06-04T09:00:00Z",
+                "",
+            ),
+            (
+                "modified",
+                "dcterms:modified",
+                dt.datetime(2005, 4, 3, 2, 1, tzinfo=dt.timezone.utc),
+                "2005-04-03T02:01:00Z",
+                ' xsi:type="dcterms:W3CDTF"',
+            ),
+        ],
+    )
+    def it_normalizes_timezone_aware_date_property_values_to_utc(
+        self, prop_name: str, tagname: str, value: dt.datetime, str_val: str, attrs: str
+    ):
+        coreProperties = self.coreProperties(tagname="", str_val="")
+        core_properties = CoreProperties(cast("CT_CoreProperties", parse_xml(coreProperties)))
+        expected_xml = self.coreProperties(tagname, str_val, attrs)
+
+        setattr(core_properties, prop_name, value)
+
+        assert core_properties._element.xml == expected_xml
+
+    @pytest.mark.parametrize(
         ("str_val", "expected_value"),
         [("42", 42), (None, 0), ("foobar", 0), ("-17", 0), ("32.7", 0)],
     )

@@ -1,3 +1,4 @@
+# pyright: reportAssignmentType=false
 # pyright: reportPrivateUsage=false
 
 """Custom element classes related to paragraphs (CT_P)."""
@@ -7,7 +8,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable, List, cast
 
 from docx.oxml.parser import OxmlElement
-from docx.oxml.xmlchemy import BaseOxmlElement, ZeroOrMore, ZeroOrOne
+from docx.oxml.simpletypes import ST_LongHexNumber
+from docx.oxml.xmlchemy import BaseOxmlElement, OptionalAttribute, ZeroOrMore, ZeroOrOne
 
 if TYPE_CHECKING:
     from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
@@ -25,6 +27,9 @@ class CT_P(BaseOxmlElement):
     get_or_add_pPr: Callable[[], CT_PPr]
     hyperlink_lst: List[CT_Hyperlink]
     r_lst: List[CT_R]
+
+    paraId: str | None = OptionalAttribute("w14:paraId", ST_LongHexNumber)
+    textId: str | None = OptionalAttribute("w14:textId", ST_LongHexNumber)
 
     pPr: CT_PPr | None = ZeroOrOne("w:pPr")  # pyright: ignore[reportAssignmentType]
     hyperlink = ZeroOrMore("w:hyperlink")
@@ -99,7 +104,17 @@ class CT_P(BaseOxmlElement):
         Inner-content child elements like `w:r` and `w:hyperlink` are translated to
         their text equivalent.
         """
-        return "".join(e.text for e in self.xpath("w:r | w:hyperlink"))
+        return "".join(e.text for e in self.xpath("w:r | w:hyperlink | w:del"))
+
+    @property
+    def accepted_text(self) -> str:
+        """Visible paragraph text with insertions included and deletions omitted."""
+        return "".join(e.text for e in self.xpath("w:r | w:hyperlink | w:ins"))
+
+    @property
+    def deleted_text(self) -> str:
+        """Deleted-only text for this paragraph."""
+        return "".join(e.text for e in self.xpath("w:del"))
 
     def _insert_pPr(self, pPr: CT_PPr) -> CT_PPr:
         self.insert(0, pPr)

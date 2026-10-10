@@ -7,4 +7,3 @@
 .pytest_cache/
 _scratch/
 Session.vim
-/.tox/

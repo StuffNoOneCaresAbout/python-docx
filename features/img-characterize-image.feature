@@ -25,3 +25,4 @@ Feature: Characterize an image file
      | lena.gif         | image/gif  |  256 |  256 |    72    |    72    |
      | lena.bmp         | image/bmp  |  512 |  512 |    96    |    96    |
      | mountain.bmp     | image/bmp  |  640 |  480 |   300    |   300    |
+     | python.webp      | image/webp |    2 |    3 |    72    |    72    |

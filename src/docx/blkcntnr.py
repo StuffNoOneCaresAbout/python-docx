@@ -84,7 +84,11 @@ class BlockItemContainer(StoryChild):
 
         Read-only.
         """
-        return [Paragraph(p, self) for p in self._element.p_lst]
+        return [
+            Paragraph(element, self)
+            for element in self._element.inner_content_elements
+            if isinstance(element, CT_P)
+        ]
 
     @property
     def tables(self):
@@ -94,7 +98,11 @@ class BlockItemContainer(StoryChild):
         """
         from docx.table import Table
 
-        return [Table(tbl, self) for tbl in self._element.tbl_lst]
+        return [
+            Table(element, self)
+            for element in self._element.inner_content_elements
+            if isinstance(element, CT_Tbl)
+        ]
 
     def _add_paragraph(self):
         """Return paragraph newly added to the end of the content in this container."""
