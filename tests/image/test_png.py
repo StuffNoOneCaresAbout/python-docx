@@ -13,8 +13,8 @@ from docx.image.png import (
     _ChunkFactory,
     _ChunkParser,
     _Chunks,
-    _IHDRChunk,
     _eXIfChunk,
+    _IHDRChunk,
     _pHYsChunk,
     _PngParser,
 )

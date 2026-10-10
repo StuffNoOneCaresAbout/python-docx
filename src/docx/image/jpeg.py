@@ -369,8 +369,8 @@ class _App1Marker(_Marker):
 
     @classmethod
     def from_stream(cls, stream, marker_code, offset):
-        """Extract the horizontal and vertical dots-per-inch values and orientation from the APP1 header
-        at `offset` in `stream`."""
+        """Extract the horizontal and vertical dots-per-inch values and orientation
+        from the APP1 header at `offset` in `stream`."""
         # field                 off  len  type   notes
         # --------------------  ---  ---  -----  ----------------------------
         # segment length         0    2   short
