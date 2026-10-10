@@ -67,7 +67,21 @@ class InlineShape:
     @height.setter
     def height(self, cy: Length):
         self._inline.extent.cy = cy
-        self._inline.graphic.graphicData.pic.spPr.cy = cy
+        pic_spPr = self._inline.graphic.graphicData.pic.spPr
+        if self._extent_swaps_axes:
+            pic_spPr.cx = cy
+        else:
+            pic_spPr.cy = cy
+
+    @property
+    def _extent_swaps_axes(self) -> bool:
+        """True when the picture's ``a:xfrm`` rotates it by 90° or 270°, meaning
+        ``wp:extent`` (display axes) and ``pic:spPr`` (native image axes) are crossed."""
+        xfrm = self._inline.graphic.graphicData.pic.spPr.xfrm
+        if xfrm is None:
+            return False
+        # ST_Angle units are 1/60000 degree; 90° -> 5_400_000, 270° -> 16_200_000
+        return (xfrm.rot or 0) % 10_800_000 == 5_400_000
 
     @property
     def type(self):
@@ -100,4 +114,8 @@ class InlineShape:
     @width.setter
     def width(self, cx: Length):
         self._inline.extent.cx = cx
-        self._inline.graphic.graphicData.pic.spPr.cx = cx
+        pic_spPr = self._inline.graphic.graphicData.pic.spPr
+        if self._extent_swaps_axes:
+            pic_spPr.cy = cx
+        else:
+            pic_spPr.cx = cx

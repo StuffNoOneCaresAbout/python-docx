@@ -31,6 +31,39 @@ from ..unitutil.mock import (
 )
 
 
+def _jfif_bytes_with_xmp_then_exif_app1(orientation: int) -> bytes:
+    """Return bytes of a JFIF JPEG stream whose *non-Exif* APP1 segment precedes the
+    Exif APP1 segment carrying `orientation`, reproducing the ordering that breaks
+    naive "first APP1 marker" lookups."""
+    tiff = (
+        b"MM\x00*"  # big-endian byte order, magic 42
+        b"\x00\x00\x00\x08"  # IFD0 offset
+        b"\x00\x01"  # one entry
+        b"\x01\x12"  # tag: Orientation
+        b"\x00\x03"  # type: SHORT
+        b"\x00\x00\x00\x01"  # count: 1
+        + orientation.to_bytes(2, "big")
+        + b"\x00\x00"  # value (inline) + pad
+    )
+    exif_segment_body = b"Exif\x00\x00" + tiff
+    return (
+        b"\xff\xd8"  # SOI
+        b"\xff\xe0"  # APP0 (JFIF)
+        + (16).to_bytes(2, "big")
+        + b"JFIF\x00\x01\x01\x01\x00\x2a\x00\x18\x00\x00"
+        + b"\xff\xe1"  # APP1 (non-Exif, e.g. XMP)
+        + (8).to_bytes(2, "big")
+        + b"Foobar"
+        + b"\xff\xe1"  # APP1 (Exif)
+        + (2 + len(exif_segment_body)).to_bytes(2, "big")
+        + exif_segment_body
+        + b"\xff\xc0"  # SOF0
+        + (11).to_bytes(2, "big")
+        + b"\x00\x00\xde\x00\x6f\x01\x01\x11\x00"  # precision, h=222, w=111, 1 component
+        + b"\xff\xd9"  # EOI
+    )
+
+
 class DescribeJpeg:
     def it_knows_its_content_type(self):
         jpeg = Jpeg(None, None, None, None)
@@ -43,7 +76,7 @@ class DescribeJpeg:
     class DescribeExif:
         def it_can_construct_from_an_exif_stream(self, from_exif_fixture):
             # fixture ----------------------
-            stream_, _JfifMarkers_, cx, cy, horz_dpi, vert_dpi = from_exif_fixture
+            stream_, _JfifMarkers_, cx, cy, horz_dpi, vert_dpi, orientation = from_exif_fixture
             # exercise ---------------------
             exif = Exif.from_stream(stream_)
             # verify -----------------------
@@ -53,6 +86,7 @@ class DescribeJpeg:
             assert exif.px_height == cy
             assert exif.horz_dpi == horz_dpi
             assert exif.vert_dpi == vert_dpi
+            assert exif.orientation == orientation
 
     class DescribeJfif:
         def it_can_construct_from_a_jfif_stream(self, from_jfif_fixture):
@@ -66,18 +100,31 @@ class DescribeJpeg:
             assert jfif.vert_dpi == vert_dpi
             assert jfif.orientation == 1
 
-        def it_reads_orientation_from_exif_app1_when_present(
+        def it_reads_orientation_from_the_exif_app1_marker(
             self, stream_, _JfifMarkers_, jfif_markers_
         ):
             jfif_markers_.sof.px_width = 111
             jfif_markers_.sof.px_height = 222
             jfif_markers_.app0.horz_dpi = 72
             jfif_markers_.app0.vert_dpi = 72
-            jfif_markers_.app1.orientation = 8
+            jfif_markers_.exif_app1.orientation = 6
 
             jfif = Jfif.from_stream(stream_)
 
-            assert jfif.orientation == 8
+            assert jfif.orientation == 6
+
+        def it_prefers_the_exif_app1_orientation_over_a_preceding_non_exif_app1(self):
+            # a non-Exif APP1 (e.g. XMP) occurs *before* the Exif APP1 in the stream
+            bytes_ = _jfif_bytes_with_xmp_then_exif_app1(orientation=6)
+
+            jfif = Jfif.from_stream(io.BytesIO(bytes_))
+            exif = Exif.from_stream(io.BytesIO(bytes_))
+
+            # the later Exif APP1 marker's orientation must survive
+            assert jfif.orientation == 6
+            assert exif.orientation == 6
+            assert exif.px_width == 111
+            assert exif.px_height == 222
 
     # fixtures -------------------------------------------------------
 
@@ -85,12 +132,14 @@ class DescribeJpeg:
     def from_exif_fixture(self, stream_, _JfifMarkers_, jfif_markers_):
         px_width, px_height = 111, 222
         horz_dpi, vert_dpi = 333, 444
+        # non-default orientation so a regression in propagation is caught
+        orientation = 6
         jfif_markers_.sof.px_width = px_width
         jfif_markers_.sof.px_height = px_height
-        jfif_markers_.app1.horz_dpi = horz_dpi
-        jfif_markers_.app1.vert_dpi = vert_dpi
-        jfif_markers_.app1.orientation = 1
-        return (stream_, _JfifMarkers_, px_width, px_height, horz_dpi, vert_dpi)
+        jfif_markers_.exif_app1.horz_dpi = horz_dpi
+        jfif_markers_.exif_app1.vert_dpi = vert_dpi
+        jfif_markers_.exif_app1.orientation = orientation
+        return (stream_, _JfifMarkers_, px_width, px_height, horz_dpi, vert_dpi, orientation)
 
     @pytest.fixture
     def from_jfif_fixture(self, stream_, _JfifMarkers_, jfif_markers_):
@@ -100,8 +149,8 @@ class DescribeJpeg:
         jfif_markers_.sof.px_height = px_height
         jfif_markers_.app0.horz_dpi = horz_dpi
         jfif_markers_.app0.vert_dpi = vert_dpi
-        type(jfif_markers_).app1 = property(
-            lambda self: (_ for _ in ()).throw(KeyError("no APP1 marker in image"))
+        type(jfif_markers_).exif_app1 = property(
+            lambda self: (_ for _ in ()).throw(KeyError("no Exif APP1 marker in image"))
         )
         return (stream_, _JfifMarkers_, px_width, px_height, horz_dpi, vert_dpi)
 
@@ -142,6 +191,10 @@ class Describe_JfifMarkers:
         app1 = jfif_markers.app1
         assert app1 is app1_
 
+    def it_can_find_the_exif_APP1_marker_skipping_a_preceding_non_exif_one(self, exif_app1_fixture):
+        jfif_markers, exif_app1_ = exif_app1_fixture
+        assert jfif_markers.exif_app1 is exif_app1_
+
     def it_raises_if_it_cant_find_the_APP0_marker(self, no_app0_fixture):
         jfif_markers = no_app0_fixture
         with pytest.raises(KeyError):
@@ -151,6 +204,11 @@ class Describe_JfifMarkers:
         jfif_markers = no_app1_fixture
         with pytest.raises(KeyError):
             jfif_markers.app1
+
+    def it_raises_if_it_cant_find_an_exif_APP1_marker(self, no_exif_app1_fixture):
+        jfif_markers = no_exif_app1_fixture
+        with pytest.raises(KeyError):
+            jfif_markers.exif_app1
 
     def it_can_find_the_SOF_marker(self, sof_fixture):
         jfif_markers, sof_ = sof_fixture
@@ -173,6 +231,14 @@ class Describe_JfifMarkers:
         return instance_mock(request, _App1Marker, marker_code=JPEG_MARKER_CODE.APP1)
 
     @pytest.fixture
+    def exif_app1_(self, request):
+        return instance_mock(request, _App1Marker, marker_code=JPEG_MARKER_CODE.APP1, is_exif=True)
+
+    @pytest.fixture
+    def non_exif_app1_(self, request):
+        return instance_mock(request, _App1Marker, marker_code=JPEG_MARKER_CODE.APP1, is_exif=False)
+
+    @pytest.fixture
     def app0_fixture(self, soi_, app0_, eoi_):
         markers = (soi_, app0_, eoi_)
         jfif_markers = _JfifMarkers(markers)
@@ -183,6 +249,14 @@ class Describe_JfifMarkers:
         markers = (soi_, app1_, eoi_)
         jfif_markers = _JfifMarkers(markers)
         return jfif_markers, app1_
+
+    @pytest.fixture
+    def exif_app1_fixture(self, soi_, non_exif_app1_, exif_app1_, eoi_):
+        """Non-Exif APP1 (e.g. XMP) precedes the Exif APP1; exif_app1 must select the
+        later Exif marker."""
+        markers = (soi_, non_exif_app1_, exif_app1_, eoi_)
+        jfif_markers = _JfifMarkers(markers)
+        return jfif_markers, exif_app1_
 
     @pytest.fixture
     def eoi_(self, request):
@@ -216,6 +290,11 @@ class Describe_JfifMarkers:
     @pytest.fixture
     def no_app1_fixture(self, soi_, eoi_):
         markers = (soi_, eoi_)
+        return _JfifMarkers(markers)
+
+    @pytest.fixture
+    def no_exif_app1_fixture(self, soi_, non_exif_app1_, eoi_):
+        markers = (soi_, non_exif_app1_, eoi_)
         return _JfifMarkers(markers)
 
     @pytest.fixture
@@ -318,14 +397,14 @@ class Describe_App1Marker:
     ):
         bytes_ = b"\x00\x42Exif\x00\x00"
         marker_code, offset, length = JPEG_MARKER_CODE.APP1, 0, 66
-        horz_dpi, vert_dpi = 42, 24
+        horz_dpi, vert_dpi, orientation = 42, 24, 6
         stream = StreamReader(io.BytesIO(bytes_), BIG_ENDIAN)
 
         app1_marker = _App1Marker.from_stream(stream, marker_code, offset)
 
         _tiff_from_exif_segment_.assert_called_once_with(stream, offset, length)
         _App1Marker__init_.assert_called_once_with(
-            ANY, marker_code, offset, length, horz_dpi, vert_dpi, 1
+            ANY, marker_code, offset, length, horz_dpi, vert_dpi, orientation, is_exif=True
         )
         assert isinstance(app1_marker, _App1Marker)
 
@@ -393,7 +472,8 @@ class Describe_App1Marker:
 
     @pytest.fixture
     def tiff_(self, request):
-        return instance_mock(request, Tiff, horz_dpi=42, vert_dpi=24, orientation=1)
+        # orientation differs from the default (1) so propagation regressions fail
+        return instance_mock(request, Tiff, horz_dpi=42, vert_dpi=24, orientation=6)
 
     @pytest.fixture
     def _tiff_from_exif_segment_(self, request, tiff_):
